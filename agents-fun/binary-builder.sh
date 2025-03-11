@@ -25,10 +25,13 @@ elif [[ "$OS_TYPE" == *"MINGW"* ]] || [[ "$OS_TYPE" == *"CYGWIN"* ]]; then
 fi
 
 # Execute the main binary (adjust the path/name if needed per OS)
-"$TMPDIR"/pkg/agents-fun-linux
-
-# Clean up the temporary directory if needed
-# rm -rf "$TMPDIR"
+if [ "$OS_TYPE" = "Linux" ]; then
+    "$TMPDIR"/pkg/agents-fun-linux
+elif [ "$OS_TYPE" = "Darwin" ]; then
+    "$TMPDIR"/pkg/agents-fun-macos
+elif [[ "$OS_TYPE" == *"MINGW"* ]] || [[ "$OS_TYPE" == *"CYGWIN"* ]]; then
+    "$TMPDIR"/pkg/agents-fun-win.exe
+fi
 
 exit 0
 
