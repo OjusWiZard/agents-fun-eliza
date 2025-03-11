@@ -1,0 +1,100 @@
+name: Build and Package Agents-Fun
+
+on:
+  push:
+    branches:
+      - development
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    # Define a matrix with OS and CPU architecture combinations.
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            os_name: linux
+            arch: x64
+          - os: ubuntu-latest
+            os_name: linux
+            arch: arm64
+          - os: macos-latest
+            os_name: darwin
+            arch: x64
+          - os: macos-latest
+            os_name: darwin
+            arch: arm64
+          - os: windows-latest
+            os_name: windows
+            arch: x64
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: ./agents-fun
+        run: bun install
+
+      - name: Prepare directories
+        working-directory: ./agents-fun
+        shell: bash
+        run: |
+          # Create the temporary assets directory
+          mkdir -p ./pkg_${{ matrix.os_name }}_${{ matrix.arch }}/libs/
+
+      - name: Copy dynamic library from onnxruntime-node
+        working-directory: ./agents-fun
+        shell: bash
+        run: |
+          echo "Packaging for OS: ${{ matrix.os_name }}, Architecture: ${{ matrix.arch }}"
+          if [ "${{ matrix.os_name }}" = "linux" ]; then
+              # For Linux, assume .so files are used.
+              cp node_modules/onnxruntime-node/bin/napi-v3/linux/${{ matrix.arch }}/*.so pkg_${{ matrix.os_name }}_${{ matrix.arch }}/libs/
+          elif [ "${{ matrix.os_name }}" = "darwin" ]; then
+              # For macOS, choose the correct folder based on CPU.
+              if [ "${{ matrix.arch }}" = "arm64" ]; then
+                  cp node_modules/onnxruntime-node/bin/napi-v3/darwin/arm64/*.dylib pkg_${{ matrix.os_name }}_${{ matrix.arch }}/libs/
+              else
+                  cp node_modules/onnxruntime-node/bin/napi-v3/darwin/x64/*.dylib pkg_${{ matrix.os_name }}_${{ matrix.arch }}/libs/
+              fi
+          elif [ "${{ matrix.os_name }}" = "windows" ]; then
+              # For Windows, assume DLL files.
+              cp node_modules/onnxruntime-node/bin/napi-v3/windows/${{ matrix.arch }}/*.dll pkg_${{ matrix.os_name }}_${{ matrix.arch }}/libs/
+          else
+              echo "Unsupported OS: ${{ matrix.os_name }}"
+              exit 1
+          fi
+
+      - name: Build binary with Bun
+        working-directory: ./agents-fun
+        shell: bash
+        run: |
+          # Determine the output binary name based on OS.
+          BINARY=""
+          if [ "${{ matrix.os_name }}" = "linux" ]; then
+            BINARY="agents-fun-linux"
+          elif [ "${{ matrix.os_name }}" = "darwin" ]; then
+            BINARY="agents-fun-macos"
+          elif [ "${{ matrix.os_name }}" = "windows" ]; then
+            BINARY="agents-fun-windows.exe"
+          fi
+          echo "Building binary: $BINARY"
+          bun build --entrypoints ./src/index.ts --packages bundle --target bun --compile ./src/index.ts --sourcemap --asset-naming="[name].[ext]" --outfile pkg_${{ matrix.os_name }}_${{ matrix.arch }}/$BINARY
+          echo "Binary built successfully"
+
+          echo "zipping pkg folder"
+          zip -r pkg_${{ matrix.os_name }}_${{ matrix.arch }}.zip pkg_${{ matrix.os_name }}_${{ matrix.arch }}/
+
+      - name: Create runnable binary ussing binary-builder.sh
+        working-directory: ./agents-fun
+        shell: bash
+        run: |
+          cat binary-builder.sh pkg_${{ matrix.os_name }}_${{ matrix.arch }}.zip > pkg_${{ matrix.os_name }}_${{ matrix.arch }}.run
