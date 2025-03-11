@@ -56,8 +56,10 @@ jobs:
         run: |
           echo "Packaging for OS: ${{ matrix.os_name }}, Architecture: ${{ matrix.arch }}"
           if [ "${{ matrix.os_name }}" = "linux" ]; then
+              # list files in current directory
+              ls -l
               # For Linux, assume .so files are used.
-              cp node_modules/onnxruntime-node/bin/napi-v3/linux/${{ matrix.arch }}/*.so pkg_${{ matrix.os_name }}_${{ matrix.arch }}/libs/
+              cp ./node_modules/onnxruntime-node/bin/napi-v3/linux/${{ matrix.arch }}/*.so pkg_${{ matrix.os_name }}_${{ matrix.arch }}/libs/
           elif [ "${{ matrix.os_name }}" = "darwin" ]; then
               # For macOS, choose the correct folder based on CPU.
               if [ "${{ matrix.arch }}" = "arm64" ]; then
