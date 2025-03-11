@@ -1,7 +1,3 @@
-import onnx_runntime_lib_path from './libs/libonnxruntime.1.15.1.dylib'
-console.log(onnx_runntime_lib_path)
-process.env.DYLD_LIBRARY_PATH = onnx_runntime_lib_path
-
 import { DirectClient } from '@elizaos/client-direct'
 import { AgentRuntime, elizaLogger, type Character, type Memory, settings, ModelProviderName } from '@elizaos/core'
 import path from 'path'
