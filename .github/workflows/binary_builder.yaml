@@ -69,7 +69,7 @@ jobs:
               fi
           elif [ "${{ matrix.os_name }}" = "windows" ]; then
               # For Windows, assume DLL files.
-              cp node_modules/onnxruntime-node/bin/napi-v3/windows/${{ matrix.arch }}/*.dll pkg_${{ matrix.os_name }}_${{ matrix.arch }}/libs/
+              cp node_modules/onnxruntime-node/bin/napi-v3/win32/${{ matrix.arch }}/*.dll pkg_${{ matrix.os_name }}_${{ matrix.arch }}/libs/
           else
               echo "Unsupported OS: ${{ matrix.os_name }}"
               exit 1
@@ -105,4 +105,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pkg_${{ matrix.os_name }}_${{ matrix.arch }}
-          path: pkg_${{ matrix.os_name }}_${{ matrix.arch }}.run
+          path: agents-fun/pkg_${{ matrix.os_name }}_${{ matrix.arch }}.run
