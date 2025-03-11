@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "ESNext",
     "module": "CommonJS",
     "baseUrl": "./",
     "allowJs": false,
@@ -18,11 +18,7 @@
     "experimentalDecorators": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "paths": {
-      "plugin-memeooorr/*": ["./packages/plugin-memeooorr/src/*"],
-      "safe-client/*": ["./packages/safe-client/src/*"]
-    }
+    "resolveJsonModule": true
   },
   "exclude": ["**/dist", "**/node_modules"]
 }

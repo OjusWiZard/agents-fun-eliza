@@ -1,18 +1,16 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "ESNext",
     "module": "commonjs",
     "moduleResolution": "node",
     "esModuleInterop": true,
-    "skipLibCheck": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "forceConsistentCasingInFileNames": true,
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
     "allowSyntheticDefaultImports": true
   },
   "files": [],
-  "references": [
-    { "path": "packages/plugin-memeooorr" },
-    { "path": "packages/safe-client" }
-  ]
+  "references": [],
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules"]
 }

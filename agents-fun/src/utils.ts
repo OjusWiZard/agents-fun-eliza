@@ -1,14 +1,8 @@
-import type {
-  Action,
-  AgentRuntime,
-  Character,
-  Memory,
-  Plugin,
-} from "@elizaos/core";
+import type { Action, AgentRuntime, Memory, Plugin } from "@elizaos/core";
 import { elizaLogger, stringToUuid } from "@elizaos/core";
 import net from "net";
 
-import { ROOMS } from "./config/index.ts";
+import { ROOMS } from "./config/index";
 import type { RoomKey } from "./types.ts";
 
 /**

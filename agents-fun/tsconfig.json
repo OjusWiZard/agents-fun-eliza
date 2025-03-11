@@ -1,32 +1,19 @@
 {
   "compilerOptions": {
-    "module": "ESNext",
-    "lib": ["ESNext", "dom"],
-    "moduleResolution": "Bundler",
-    "outDir": "dist",
-    "rootDir": ".",
-    "strict": false,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": false,
-    "allowImportingTsExtensions": true,
-    "declaration": true,
-    "emitDeclarationOnly": true,
-    "resolveJsonModule": true,
-    "noImplicitAny": false,
-    "allowJs": true,
-    "checkJs": false,
-    "noEmitOnError": false,
-    "moduleDetection": "force",
-    "allowArbitraryExtensions": true,
-    "customConditions": ["@elizaos/source"],
-    "types": ["node"]
+    "target": "ESNext", // Uses the latest ES features
+    "module": "CommonJS", // node_sea works best with CommonJS
+    "outDir": "dist", // tsup will override this, but good practice
+    "strict": true, // Enables strict type-checking
+    "esModuleInterop": true, // Ensures compatibility with CommonJS and ESM
+    "resolveJsonModule": true, // Allows importing JSON files
+    "sourceMap": false, // node_sea does not support source maps
+    "declaration": false, // No need for TypeScript declaration files
+    "removeComments": true, // Reduces final output size
+    "moduleResolution": "node", // Ensures correct resolution of dependencies
+    "skipLibCheck": true, // Speeds up compilation
+    "allowSyntheticDefaultImports": true, // Helps with ESM/CJS compatibility
+    "forceConsistentCasingInFileNames": true // Enforce consistent file naming
   },
-  "ts-node": {
-    "experimentalSpecifierResolution": "node",
-    "transpileOnly": true,
-    "esm": true
-  },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist", "src/**/*.d.ts", "types/**/*.test.ts"]
+  "include": ["src/**/*.ts", "characters/*.json"], // Ensures only necessary files are compiled
+  "exclude": ["node_modules", "dist", "test"] // Excludes unnecessary folders
 }
