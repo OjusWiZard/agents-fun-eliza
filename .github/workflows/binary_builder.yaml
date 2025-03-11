@@ -100,3 +100,9 @@ jobs:
         shell: bash
         run: |
           cat binary-builder.sh pkg_${{ matrix.os_name }}_${{ matrix.arch }}.zip > pkg_${{ matrix.os_name }}_${{ matrix.arch }}.run
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pkg_${{ matrix.os_name }}_${{ matrix.arch }}
+          path: pkg_${{ matrix.os_name }}_${{ matrix.arch }}.run
