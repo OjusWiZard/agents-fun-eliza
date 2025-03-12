@@ -131,3 +131,6 @@ dist
 cookies.json
 data/db.sqlite
 agents-fun/data/db.sqlite
+.agents-fun
+.bun-build
+.DS_Store
