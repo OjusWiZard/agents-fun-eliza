@@ -1,19 +1,38 @@
 {
   "compilerOptions": {
-    "target": "ESNext", // Uses the latest ES features
-    "module": "CommonJS", // node_sea works best with CommonJS
-    "outDir": "dist", // tsup will override this, but good practice
-    "strict": true, // Enables strict type-checking
-    "esModuleInterop": true, // Ensures compatibility with CommonJS and ESM
-    "resolveJsonModule": true, // Allows importing JSON files
-    "sourceMap": false, // node_sea does not support source maps
-    "declaration": false, // No need for TypeScript declaration files
-    "removeComments": true, // Reduces final output size
-    "moduleResolution": "node", // Ensures correct resolution of dependencies
-    "skipLibCheck": true, // Speeds up compilation
-    "allowSyntheticDefaultImports": true, // Helps with ESM/CJS compatibility
-    "forceConsistentCasingInFileNames": true // Enforce consistent file naming
+    // Enable latest features
+    "lib": ["ESNext"],
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleDetection": "force",
+    "allowJs": true,
+    "resolveJsonModule": true,
+
+    // Bundler mode
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+
+    // Best practices
+    "strict": true,
+    "skipLibCheck": true,
+    "noFallthroughCasesInSwitch": true,
+
+    // Some stricter flags
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noPropertyAccessFromIndexSignature": true,
+
+    "types": ["bun-types"],
+    "baseUrl": ".",
+    "paths": {
+      "config": ["./src/config/index.ts"],
+      "utils": ["./src/utils.ts"],
+      "database": ["./src/database/index.ts"],
+      "cache": ["./src/cache/index.ts"]
+    }
   },
-  "include": ["src/**/*.ts", "characters/*.json"], // Ensures only necessary files are compiled
-  "exclude": ["node_modules", "dist", "test"] // Excludes unnecessary folders
+  "include": ["src/**/*.ts", "characters/*.json", "onnxruntime-node"], // Ensures only necessary files are compiled
+  "exclude": ["node_modules"] // Excludes unnecessary folders
 }
