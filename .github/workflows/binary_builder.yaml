@@ -41,7 +41,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./agents-fun
-        run: bun install -c=bunfig.toml
+        run: bun install --frozen-lockfile
 
       - name: Prepare directories
         working-directory: ./agents-fun

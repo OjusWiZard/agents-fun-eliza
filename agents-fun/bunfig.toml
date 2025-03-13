@@ -10,7 +10,7 @@
 # To configure Bun's package auto-install behavior.
 # Default "auto" — when no node_modules folder is found, Bun
 # will automatically install dependencies on the fly during execution.
-# auto = true
+auto = "fallback"
 
 # where `bun install --global` installs packages
 globalDir = "~/.agents-fun/bun/install/global"

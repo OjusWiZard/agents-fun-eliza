@@ -7,6 +7,8 @@
     "moduleDetection": "force",
     "allowJs": true,
     "resolveJsonModule": true,
+    "resolvePackageJsonExports": true,
+    "resolvePackageJsonImports": true,
 
     // Bundler mode
     "moduleResolution": "bundler",
@@ -18,14 +20,13 @@
     "strict": true,
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true,
-
     // Some stricter flags
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noPropertyAccessFromIndexSignature": true,
 
-    "types": ["bun-types"],
-    "baseUrl": ".",
+    "types": ["bun"],
+    "baseUrl": "./",
     "paths": {
       "config": ["./src/config/index.ts"],
       "utils": ["./src/utils.ts"],
@@ -33,6 +34,10 @@
       "cache": ["./src/cache/index.ts"]
     }
   },
-  "include": ["src/**/*.ts", "characters/*.json", "onnxruntime-node"], // Ensures only necessary files are compiled
+  "include": [
+    "src/**/*.ts",
+    "characters/*.json",
+    "node_modules/onnxruntime-node/bin/**/*.{dylib,so.*,dll}"
+  ], // Ensures only necessary files are compiled
   "exclude": ["node_modules"] // Excludes unnecessary folders
 }
