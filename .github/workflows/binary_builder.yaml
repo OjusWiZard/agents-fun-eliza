@@ -37,7 +37,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.2.4
 
       - name: Install dependencies
         working-directory: ./agents-fun
@@ -89,7 +89,7 @@ jobs:
             BINARY="agents-fun-windows.exe"
           fi
           echo "Building binary: $BINARY"
-          bun build --entrypoints ./src/index.ts --packages bundle --target bun --compile ./src/index.ts --sourcemap --asset-naming="[name].[ext]" --outfile pkg_${{ matrix.os_name }}_${{ matrix.arch }}/$BINARY
+          bun build --compile ./src/index.ts --sourcemap --outfile pkg_${{ matrix.os_name }}_${{ matrix.arch }}/$BINARY
           echo "Binary built successfully"
 
           echo "zipping pkg folder"
