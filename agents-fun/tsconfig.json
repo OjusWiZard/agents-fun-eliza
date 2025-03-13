@@ -6,9 +6,6 @@
     "module": "ESNext",
     "moduleDetection": "force",
     "allowJs": true,
-    "resolveJsonModule": true,
-    "resolvePackageJsonExports": true,
-    "resolvePackageJsonImports": true,
 
     // Bundler mode
     "moduleResolution": "bundler",
@@ -25,7 +22,6 @@
     "noUnusedParameters": true,
     "noPropertyAccessFromIndexSignature": true,
 
-    "types": ["bun"],
     "baseUrl": "./",
     "paths": {
       "config": ["./src/config/index.ts"],
@@ -34,11 +30,6 @@
       "cache": ["./src/cache/index.ts"]
     }
   },
-  "include": [
-    "@elizaos/core",
-    "src/**/*.ts",
-    "characters/*.json",
-    "node_modules/onnxruntime-node/bin/**/*.{dylib,so.*,dll}"
-  ], // Ensures only necessary files are compiled
+  "include": ["src/**/*.ts", "characters/*.json"], // Ensures only necessary files are compiled
   "exclude": ["node_modules"] // Excludes unnecessary folders
 }
