@@ -1,5 +1,5 @@
-import { SqliteDatabaseAdapter } from "@elizaos/adapter-sqlite";
-import Database from "better-sqlite3";
+import { SqliteDatabaseAdapter } from "./bunSqlite.ts";
+import Database from "bun:sqlite";
 import path from "path";
 
 export function initializeDatabase(dataDir: string) {
