@@ -34,14 +34,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
         with:
-          bun-version: 1.2.4
+          version: 9
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
 
       - name: Install dependencies
         working-directory: ./agents-fun
-        run: bun install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Prepare directories
         working-directory: ./agents-fun
@@ -50,59 +56,51 @@ jobs:
           # Create the temporary assets directory
           mkdir -p ./pkg_${{ matrix.os_name }}_${{ matrix.arch }}/libs/
 
-      - name: Copy dynamic library from onnxruntime-node
-        working-directory: ./agents-fun
-        shell: bash
-        run: |
-          echo "Packaging for OS: ${{ matrix.os_name }}, Architecture: ${{ matrix.arch }}"
-          if [ "${{ matrix.os_name }}" = "linux" ]; then
-              # list files in current directory
-              ls -l
-              # For Linux, assume .so files are used.
-              cp ./node_modules/onnxruntime-node/bin/napi-v3/linux/${{ matrix.arch }}/*.so.* pkg_${{ matrix.os_name }}_${{ matrix.arch }}/libs/
-          elif [ "${{ matrix.os_name }}" = "darwin" ]; then
-              # For macOS, choose the correct folder based on CPU.
-              if [ "${{ matrix.arch }}" = "arm64" ]; then
-                  cp node_modules/onnxruntime-node/bin/napi-v3/darwin/arm64/*.dylib pkg_${{ matrix.os_name }}_${{ matrix.arch }}/libs/
-              else
-                  cp node_modules/onnxruntime-node/bin/napi-v3/darwin/x64/*.dylib pkg_${{ matrix.os_name }}_${{ matrix.arch }}/libs/
-              fi
-          elif [ "${{ matrix.os_name }}" = "windows" ]; then
-              # For Windows, assume DLL files.
-              cp node_modules/onnxruntime-node/bin/napi-v3/win32/${{ matrix.arch }}/*.dll pkg_${{ matrix.os_name }}_${{ matrix.arch }}/libs/
-          else
-              echo "Unsupported OS: ${{ matrix.os_name }}"
-              exit 1
-          fi
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.4
 
       - name: Build binary with Bun
         working-directory: ./agents-fun
         shell: bash
         run: |
           # Determine the output binary name based on OS.
-          BINARY=""
-          if [ "${{ matrix.os_name }}" = "linux" ]; then
-            BINARY="agents-fun-linux"
-          elif [ "${{ matrix.os_name }}" = "darwin" ]; then
-            BINARY="agents-fun-macos"
-          elif [ "${{ matrix.os_name }}" = "windows" ]; then
-            BINARY="agents-fun-windows.exe"
-          fi
+          BINARY="agentsFunEliza.node"
           echo "Building binary: $BINARY"
-          bun build --compile ./src/index.ts --sourcemap --outfile pkg_${{ matrix.os_name }}_${{ matrix.arch }}/$BINARY
+          bun build --compile ./src/index.ts --outfile=pkg_${{ matrix.os_name }}_${{ matrix.arch }}/$BINARY --external sharp --external onnxruntime-node --external @roamhq --external sqlite-vec
           echo "Binary built successfully"
 
-          echo "zipping pkg folder"
-          zip -r pkg_${{ matrix.os_name }}_${{ matrix.arch }}.zip pkg_${{ matrix.os_name }}_${{ matrix.arch }}/
-
-      - name: Create runnable binary ussing binary-builder.sh
-        working-directory: ./agents-fun
+      - name: Copy binary file to binary_builder pkg folder
         shell: bash
         run: |
-          cat binary-builder.sh pkg_${{ matrix.os_name }}_${{ matrix.arch }}.zip > pkg_${{ matrix.os_name }}_${{ matrix.arch }}.run
+          cp agents-fun/pkg_${{ matrix.os_name }}_${{ matrix.arch }}/$BINARY binary-builder/pkg/binary/
+          echo "Binary copied successfully"
 
-      - name: Upload artifact
+      - name: Install external dependencies
+        shell: bash
+        run: |
+          cd binary-builder/pkg/
+          npm install && npm fund
+          echo "External dependencies installed successfully to run binary file"
+
+      - name: Install rust dependencies
+        shell: bash
+        run: |
+          rustup update stable
+          cargo build --release
+          echo "Rust dependencies installed successfully"
+
+      - name: Upload artifact (Linux and macOS)
+        if: matrix.os_name == 'linux' || matrix.os_name == 'darwin'
         uses: actions/upload-artifact@v4
         with:
-          name: pkg_${{ matrix.os_name }}_${{ matrix.arch }}
-          path: agents-fun/pkg_${{ matrix.os_name }}_${{ matrix.arch }}.run
+          name: agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}
+          path: binary-builder/target/release/agentsFunEliza
+
+      - name: Upload artifact (Windows)
+        if: matrix.os_name == 'windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}
+          path: binary-builder/target/release/agentsFunEliza.exe
