@@ -1,0 +1,9 @@
+[package]
+name = "binary-builder"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.97"
+rust-embed = "8.6.0"
+tempfile = "3.19.1"

@@ -1,0 +1,23 @@
+{
+  "name": "agents-fun-binary",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "trustedDependencies": [
+    "@roamhq/wrtc",
+    "onnxruntime-node",
+    "sharp"
+  ],
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@roamhq/wrtc": "0.8.0",
+    "onnxruntime-node": "1.15.1",
+    "sharp": "0.33.5",
+    "sqlite-vec": "0.1.6"
+  }
+}
