@@ -194,6 +194,7 @@ export function getSecrets(safeAddress: string): Record<string, string> {
     SAFE_ADDRESS_DICT: process.env
       .CONNECTION_CONFIGS_CONFIG_SAFE_CONTRACT_ADDRESSES as string,
     SAFE_ADDRESS: safeAddress,
+    USE_OPENAI_EMBEDDING: process.env.USE_OPENAI_EMBEDDING as string,
     SUBGRAPH_URL: SUBGRAPH_URLS.USER_SUBGRAPH_URL as string,
     MEME_SUBGRAPH_URL: SUBGRAPH_URLS.MEME_SUBGRAPH_URL as string,
     CHAIN_ID: CHAINS.BASE.CHAIN_ID as string,
@@ -201,6 +202,7 @@ export function getSecrets(safeAddress: string): Record<string, string> {
 }
 
 export const ROOMS = {
+  START: "START",
   TOKEN_INTERACTION: "TOKEN_INTERACTION",
   TWITTER_INTERACTION: "TWITTER_INTERACTION",
 } as const;
