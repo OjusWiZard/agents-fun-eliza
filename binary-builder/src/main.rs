@@ -58,7 +58,7 @@ fn main() -> Result<()> {
         f.write_all(&data.data)?;
     }
 
-    // 4) Build the path to the .node binary for this OS/CPU.
+    // 4) Build the path to the binary for this OS CPU.
     let binary_filename = "agentsFunEliza"; // Adjust if yours has a different name
     let node_binary = tmp_path.join("binary").join(binary_filename);
 

@@ -15,6 +15,7 @@ export function parseArguments(): {
   characters?: string;
 } {
   try {
+    elizaLogger.log("Parsing arguments..: ", process.argv.slice(2));
     return yargs(process.argv.slice(2))
       .option("character", {
         type: "string",

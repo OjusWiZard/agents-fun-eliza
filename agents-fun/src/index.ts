@@ -26,7 +26,7 @@ import {
 } from "./utils.ts";
 import { registerHealthCheckRoute } from "./healthcheck/index.ts";
 
-const __dirname = path.dirname("./data");
+// const __dirname = path.dirname("./data");
 
 /**
  * Creates the AgentRuntime using only the memeoorPlugin.
@@ -144,7 +144,9 @@ async function main() {
     elizaLogger.success("Token initialized");
 
     // Initialize the database and cache
-    const dataDir = path.join(__dirname, "data");
+    const dataDir =
+      process.env.CONNECTION_CONFIGS_CONFIG_STORE_PATH || process.cwd();
+    elizaLogger.info(`Data directory initialized: ${dataDir}`);
     const db = initializeDatabase(dataDir);
     elizaLogger.success("Database initialized");
     await db.init();

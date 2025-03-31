@@ -7,7 +7,7 @@ import * as path from "path";
 import { ROOMS } from "./config/index.ts";
 import type { RoomKey } from "./types.ts";
 
-const storePath = process.env.STORE_PATH as string;
+const storePath = process.env.CONNECTION_CONFIGS_CONFIG_STORE_PATH as string;
 const logPath = path.join(storePath, "log.txt");
 
 const formatDate = (date: Date) => {
