@@ -86,6 +86,7 @@ jobs:
 
       - name: Install rust dependencies
         shell: bash
+        working-directory: ./binary-builder
         run: |
           rustup update stable
           cargo build --release
