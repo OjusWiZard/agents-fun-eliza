@@ -65,7 +65,7 @@ jobs:
         shell: bash
         run: |
           # Determine the output binary name based on OS.
-          BINARY="agentsFunEliza.node"
+          BINARY="agentsFunEliza"
           echo "Building binary: $BINARY"
           bun build --compile ./src/index.ts --outfile=pkg_${{ matrix.os_name }}_${{ matrix.arch }}/$BINARY --external sharp --external onnxruntime-node --external @roamhq --external sqlite-vec
           echo "Binary built successfully"
@@ -73,7 +73,7 @@ jobs:
       - name: Copy binary file to binary_builder pkg folder
         shell: bash
         run: |
-          BINARY="agentsFunEliza.node"
+          BINARY="agentsFunEliza"
           cp ./agents-fun/pkg_${{ matrix.os_name }}_${{ matrix.arch }}/$BINARY ./binary-builder/pkg/binary/
           echo "Binary copied successfully"
 
