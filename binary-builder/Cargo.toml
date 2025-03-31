@@ -7,3 +7,7 @@ edition = "2021"
 anyhow = "1.0.97"
 rust-embed = "8.6.0"
 tempfile = "3.19.1"
+
+[[bin]]
+name = "agentsFunEliza"
+path = "src/main.rs"

@@ -97,11 +97,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}
-          path: binary-builder/target/release/agentsFunEliza
+          path: ./binary-builder/target/release/agentsFunEliza
 
       - name: Upload artifact (Windows)
         if: matrix.os_name == 'windows'
         uses: actions/upload-artifact@v4
         with:
           name: agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}
-          path: binary-builder/target/release/agentsFunEliza.exe
+          path: ./binary-builder/target/release/agentsFunEliza.exe
