@@ -9,21 +9,22 @@ import {
 } from "@elizaos/core";
 import path from "path";
 import { memeoorPlugin } from "plugin-memeooorr";
-import dotenv from "dotenv";
 
-import { initializeDatabase } from "database";
-import { initializeDbCache } from "cache";
+import { initializeDatabase } from "./database/index.ts";
+import { initializeDbCache } from "./cache/index.ts";
 import {
   getTokenForProvider,
   loadCharacterFromArgs,
   fetchSafeAddress,
   getSecrets,
   ROOMS,
-} from "config";
-import { getAvailablePort, createMemory, triggerPluginActions } from "utils";
-
-// Load environment variables from .env file
-dotenv.config();
+} from "./config/index.ts";
+import {
+  getAvailablePort,
+  createMemory,
+  triggerPluginActions,
+} from "./utils.ts";
+import { registerHealthCheckRoute } from "./healthcheck/index.ts";
 
 const __dirname = path.dirname("./data");
 
@@ -69,24 +70,33 @@ async function runAgentAutonomously(
   // Initial trigger
   try {
     elizaLogger.log(`[First-Loop] Memeoor is deciding what to do...`);
-    await runtime.databaseAdapter.createMemory(firstMem, "start", false);
+    await runtime.databaseAdapter.createMemory(firstMem, ROOMS.START, false);
     await triggerPluginActions(runtime, firstMem);
   } catch (err) {
     elizaLogger.error("Error in initial autonomous loop:", err);
   }
 
   // Periodically trigger actions
-  const intervalMs = 60_00000; // 1 minute
+  const intervalMs = 60_0000; // 10 minutes
+  const messageIntervalMs = 30000; // 30 seconds
+
   setInterval(async () => {
     try {
       elizaLogger.log(`[Auto-Loop] Memeoor is deciding what to do...`);
       const mem = createMemory(runtime, ROOMS.TWITTER_INTERACTION);
-      await runtime.databaseAdapter.createMemory(mem, "start", false);
+      await runtime.databaseAdapter.createMemory(mem, ROOMS.START, false);
       await triggerPluginActions(runtime, mem);
     } catch (err) {
       elizaLogger.error("Error in autonomous loop:", err);
     }
   }, intervalMs);
+
+  // Message interval
+  setInterval(() => {
+    elizaLogger.log("I'm awake! Waiting for next iteration to start.");
+    const mem = createMemory(runtime, ROOMS.TWITTER_INTERACTION);
+    runtime.databaseAdapter.createMemory(mem, ROOMS.START, false);
+  }, messageIntervalMs);
 }
 
 /**
@@ -99,7 +109,7 @@ async function main() {
 
     // Get available server port
     const serverPort = await getAvailablePort(
-      parseInt(settings["SERVER_PORT"] || "3000"),
+      parseInt(settings["SERVER_PORT"] || "8716"),
     );
 
     // Load and configure the character
@@ -142,6 +152,9 @@ async function main() {
     const cache = initializeDbCache(character, db);
     const runtime = createAgent(character, db, cache, token);
     await runtime.initialize();
+
+    // start a health check service
+    registerHealthCheckRoute(runtime, directClient);
 
     // Start directClient server and launch agent's autonomous loop
     directClient.start(serverPort);

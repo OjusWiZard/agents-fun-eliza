@@ -1,9 +1,35 @@
 import type { Action, AgentRuntime, Memory, Plugin } from "@elizaos/core";
 import { elizaLogger, stringToUuid } from "@elizaos/core";
 import net from "net";
+import * as fs from "fs";
+import * as path from "path";
 
-import { ROOMS } from "./config/index";
+import { ROOMS } from "./config/index.ts";
 import type { RoomKey } from "./types.ts";
+
+const storePath = process.env.STORE_PATH as string;
+const logPath = path.join(storePath, "log.txt");
+
+const formatDate = (date: Date) => {
+  const pad = (n: number) => (n < 10 ? "0" + n : n);
+  const padMilliseconds = (n: number) =>
+    n < 10 ? "00" + n : n < 100 ? "0" + n : n;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())},${padMilliseconds(date.getMilliseconds())}`;
+};
+
+export const logMessageToFile = (
+  logLevel: string,
+  agent: string,
+  message: string,
+) => {
+  const timestamp = formatDate(new Date());
+  const formattedMessage = `[${timestamp}] [${logLevel}] [${agent}] ${message}\n`;
+  fs.appendFile(logPath, formattedMessage, (err) => {
+    if (err) {
+      elizaLogger.error(`Error writing to log file: ${err}`);
+    }
+  });
+};
 
 /**
  * Checks whether a port is available.
@@ -70,6 +96,7 @@ export async function triggerPluginActions(
   const memeInteractAction = actions[1] as Action;
 
   elizaLogger.log(`[Trigger] Executing tweet action...`);
+  logMessageToFile("INFO", "ELIZA_MEMEOOORR", "Executing tweet action...");
   const result = await tweetAction.handler(
     runtime,
     mem,
@@ -87,6 +114,10 @@ export async function triggerPluginActions(
     elizaLogger.log(
       `[Trigger] Tweet was successful. Executing meme interaction...`,
     );
+
+    const logMessage = `[Trigger] Meme interaction was successful. Result: ${result}`;
+
+    logMessageToFile("INFO", "ELIZA_MEMEOOORR", logMessage);
     mem.roomId = stringToUuid(ROOMS.TOKEN_INTERACTION);
     await memeInteractAction.handler(
       runtime,
@@ -97,6 +128,11 @@ export async function triggerPluginActions(
     );
   } else {
     elizaLogger.warn("Tweet Interaction behaviour was unsuccessful");
+    logMessageToFile(
+      "WARN",
+      "ELIZA_MEMEOOORR",
+      "Tweet Interaction behaviour was unsuccessful",
+    );
   }
   return Boolean(result);
 }

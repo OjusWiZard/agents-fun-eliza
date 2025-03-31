@@ -1,15 +1,18 @@
 {
   "compilerOptions": {
     // Enable latest features
-    "lib": ["ESNext"],
     "target": "ESNext",
     "module": "ESNext",
+    "lib": ["ESNext", "DOM"],
     "moduleDetection": "force",
     "allowJs": true,
+    "resolveJsonModule": true,
+    "declaration": false,
 
     // Bundler mode
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
+    "allowArbitraryExtensions": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,
 
@@ -19,8 +22,7 @@
     "noFallthroughCasesInSwitch": true,
     // Some stricter flags
     "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noPropertyAccessFromIndexSignature": true,
+    // "removeComments": true,
 
     "baseUrl": "./",
     "paths": {
@@ -31,5 +33,5 @@
     }
   },
   "include": ["src/**/*.ts", "characters/*.json"], // Ensures only necessary files are compiled
-  "exclude": ["node_modules"] // Excludes unnecessary folders
+  "exclude": ["node_modules", "sharp", "onnxruntime-node", "@roamhq"] // Excludes unnecessary folders
 }
