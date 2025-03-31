@@ -39,14 +39,11 @@ jobs:
         with:
           version: 9
 
-      - name: Use Node.js 22
-        uses: actions/setup-node@v4
+      - name: Install dependencies
+        working-directory: ./agents-fun
         with:
           node-version: 22
           cache: "pnpm"
-
-      - name: Install dependencies
-        working-directory: ./agents-fun
         run: pnpm install --frozen-lockfile
 
       - name: Prepare directories
