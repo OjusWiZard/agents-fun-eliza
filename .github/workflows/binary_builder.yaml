@@ -73,7 +73,8 @@ jobs:
       - name: Copy binary file to binary_builder pkg folder
         shell: bash
         run: |
-          cp agents-fun/pkg_${{ matrix.os_name }}_${{ matrix.arch }}/$BINARY binary-builder/pkg/binary/
+          BINARY="agentsFunEliza.node"
+          cp ./agents-fun/pkg_${{ matrix.os_name }}_${{ matrix.arch }}/$BINARY ./binary-builder/pkg/binary/
           echo "Binary copied successfully"
 
       - name: Install external dependencies
