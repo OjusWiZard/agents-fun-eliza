@@ -10,6 +10,50 @@ import fs from "fs";
 import path from "path";
 import yargs from "yargs";
 
+const AGENT_BASE_FOLDER = process.cwd();
+const AGENT_DEPLOYMENT_PATH = path.resolve(AGENT_BASE_FOLDER, "..");
+const AGENT_WALLET_PATH = path.join(
+  AGENT_DEPLOYMENT_PATH,
+  "ethereum_private_key.txt",
+);
+
+export const AGENT_PATHS = {
+  AGENT_BASE_FOLDER: AGENT_BASE_FOLDER,
+  AGENT_DEPLOYMENT_PATH: AGENT_DEPLOYMENT_PATH,
+  AGENT_WALLET_PATH: AGENT_WALLET_PATH,
+};
+
+try {
+  // Read the private key file
+  const privateKeyRaw = fs.readFileSync(AGENT_WALLET_PATH, "utf-8");
+
+  // Strip spaces from the start and end
+  const privateKey = privateKeyRaw.trim();
+} catch (error) {
+  console.error("Error reading the private key file:", error);
+}
+
+const SUBGRAPH_URLS = {
+  USER_SUBGRAPH_URL:
+    "https://subgraph.staging.autonolas.tech/subgraphs/name/autonolas-base" as string,
+  MEME_SUBGRAPH_URL:
+    "https://agentsfun-indexer-production.up.railway.app" as string,
+} as const;
+
+const CONTRACTS = {
+  MEME_FACTORY_CONTRACT: "0x82a9c823332518c32a0c0edc050ef00934cf04d4" as string,
+} as const;
+
+const CHAINS = {
+  BASE: {
+    CHAIN_ID: "8453" as string,
+  },
+} as const;
+
+const OPENAI_SETTINGS = {
+  USE_OPENAI_EMBEDDING: "TRUE" as string,
+} as const;
+
 export function parseArguments(): {
   character?: string;
   characters?: string;
@@ -158,44 +202,30 @@ export function fetchSafeAddress(): string {
   }
 }
 
-const SUBGRAPH_URLS = {
-  USER_SUBGRAPH_URL:
     "https://subgraph.staging.autonolas.tech/subgraphs/name/autonolas-base" as string,
   MEME_SUBGRAPH_URL:
-    "https://agentsfun-indexer-production.up.railway.app" as string,
-} as const;
-
-const CONTRACTS = {
-  MEME_FACTORY_CONTRACT: "0x82a9c823332518c32a0c0edc050ef00934cf04d4" as string,
-} as const;
-
-const CHAINS = {
-  BASE: {
-    CHAIN_ID: "8453" as string,
-  },
-} as const;
-
 /**
  * Collects all required secrets from environment variables.
  */
 export function getSecrets(safeAddress: string): Record<string, string> {
+  // Collect wallet address from address path
+
   return {
     OPENAI_API_KEY: process.env
       .CONNECTION_CONFIGS_CONFIG_OPENAI_API_KEY as string,
     TWITTER_USERNAME: process.env
-      .CONNECTION_CONFIGS_CONFIG_TWITTER_USERNAME as string,
+      .CONNECTION_CONFIGS_CONFIG_TWIKIT_USERNAME as string,
     TWITTER_PASSWORD: process.env
-      .CONNECTION_CONFIGS_CONFIG_TWITTER_PASSWORD as string,
-    TWITTER_EMAIL: process.env
-      .CONNECTION_CONFIGS_CONFIG_TWITTER_EMAIL as string,
-    AGENT_EOA_PK: process.env.AGENT_EOA_PK as string,
+      .CONNECTION_CONFIGS_CONFIG_TWIKIT_PASSWORD as string,
+    TWITTER_EMAIL: process.env.CONNECTION_CONFIGS_CONFIG_TWIKIT_EMAIL as string,
+    AGENT_EOA_PK: privateKey as string,
     BASE_LEDGER_RPC: process.env
       .CONNECTION_CONFIGS_CONFIG_BASE_LEDGER_RPC as string,
     MEME_FACTORY_CONTRACT: CONTRACTS.MEME_FACTORY_CONTRACT as string,
     SAFE_ADDRESS_DICT: process.env
       .CONNECTION_CONFIGS_CONFIG_SAFE_CONTRACT_ADDRESSES as string,
     SAFE_ADDRESS: safeAddress,
-    USE_OPENAI_EMBEDDING: process.env.USE_OPENAI_EMBEDDING as string,
+    USE_OPENAI_EMBEDDING: OPENAI_SETTINGS.USE_OPENAI_EMBEDDING as string,
     SUBGRAPH_URL: SUBGRAPH_URLS.USER_SUBGRAPH_URL as string,
     MEME_SUBGRAPH_URL: SUBGRAPH_URLS.MEME_SUBGRAPH_URL as string,
     CHAIN_ID: CHAINS.BASE.CHAIN_ID as string,
