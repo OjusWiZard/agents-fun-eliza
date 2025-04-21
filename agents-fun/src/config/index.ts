@@ -202,8 +202,6 @@ export function fetchSafeAddress(): string {
   }
 }
 
-    "https://subgraph.staging.autonolas.tech/subgraphs/name/autonolas-base" as string,
-  MEME_SUBGRAPH_URL:
 /**
  * Collects all required secrets from environment variables.
  */
