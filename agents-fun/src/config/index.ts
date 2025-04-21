@@ -10,34 +10,39 @@ import fs from "fs";
 import path from "path";
 import yargs from "yargs";
 
-const AGENT_STORE_PATH = process.env
-  .CONNECTION_CONFIGS_CONFIG_STORE_PATH as string;
-const AGENT_BASE_PATH = path.resolve(AGENT_STORE_PATH, "..");
-const AGENT_DEPLOYMENT_PATH = path.join(AGENT_BASE_PATH, "deployment");
-const AGENT_WALLET_PATH = path.join(
-  AGENT_DEPLOYMENT_PATH,
-  "ethereum_private_key.txt",
-);
+export function prepareAgentPaths(): string {
+  const AGENT_STORE_PATH = process.env
+    .CONNECTION_CONFIGS_CONFIG_STORE_PATH as string;
+  const AGENT_BASE_PATH = path.resolve(AGENT_STORE_PATH, "..");
+  const AGENT_DEPLOYMENT_PATH = path.join(AGENT_BASE_PATH, "deployment");
+  const AGENT_WALLET_PATH = path.join(
+    AGENT_DEPLOYMENT_PATH,
+    "ethereum_private_key.txt",
+  );
 
-export const AGENT_PATHS = {
-  AGENT_STORE_PATH: AGENT_STORE_PATH,
-  AGENT_BASE_PATH: AGENT_BASE_PATH,
-  AGENT_DEPLOYMENT_PATH: AGENT_DEPLOYMENT_PATH,
-  AGENT_WALLET_PATH: AGENT_WALLET_PATH,
-};
+  const AGENT_PATHS = {
+    AGENT_STORE_PATH: AGENT_STORE_PATH,
+    AGENT_BASE_PATH: AGENT_BASE_PATH,
+    AGENT_DEPLOYMENT_PATH: AGENT_DEPLOYMENT_PATH,
+    AGENT_WALLET_PATH: AGENT_WALLET_PATH,
+  };
 
-elizaLogger.log("=========CURRENT RUNTIME PATHS=========");
-elizaLogger.log(AGENT_PATHS);
-elizaLogger.log("=======================================");
+  elizaLogger.log("=========CURRENT RUNTIME PATHS=========");
+  elizaLogger.log(JSON.stringify(AGENT_PATHS, null, 2));
+  elizaLogger.log("=======================================");
 
-try {
-  // Read the private key file
-  const privateKeyRaw = fs.readFileSync(AGENT_WALLET_PATH, "utf-8");
+  try {
+    // Read the private key file
+    const privateKeyRaw = fs.readFileSync(AGENT_WALLET_PATH, "utf-8");
 
-  // Strip spaces from the start and end
-  const privateKey = privateKeyRaw.trim();
-} catch (error) {
-  console.error("Error reading the private key file:", error);
+    // Strip spaces from the start and end
+    const privateKey = privateKeyRaw.trim();
+
+    return privateKey;
+  } catch (error) {
+    console.error("Error reading the private key file:", error);
+    process.exit(1);
+  }
 }
 
 const SUBGRAPH_URLS = {
@@ -214,6 +219,7 @@ export function fetchSafeAddress(): string {
  */
 export function getSecrets(safeAddress: string): Record<string, string> {
   // Collect wallet address from address path
+  const privateKey = prepareAgentPaths();
 
   return {
     OPENAI_API_KEY: process.env
