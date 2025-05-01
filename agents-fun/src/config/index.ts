@@ -45,18 +45,18 @@ export function prepareAgentPaths(): string {
   }
 }
 
-const SUBGRAPH_URLS = {
+export const SUBGRAPH_URLS = {
   USER_SUBGRAPH_URL:
     "https://subgraph.staging.autonolas.tech/subgraphs/name/autonolas-base" as string,
   MEME_SUBGRAPH_URL:
     "https://agentsfun-indexer-production.up.railway.app" as string,
 } as const;
 
-const CONTRACTS = {
+export const CONTRACTS = {
   MEME_FACTORY_CONTRACT: "0x82a9c823332518c32a0c0edc050ef00934cf04d4" as string,
 } as const;
 
-const CHAINS = {
+export const CHAINS = {
   BASE: {
     CHAIN_ID: "8453" as string,
   },
@@ -64,6 +64,7 @@ const CHAINS = {
 
 const OPENAI_SETTINGS = {
   USE_OPENAI_EMBEDDING: "TRUE" as string,
+  USE_OPENAI_EMBEDDING_TYPE: "TRUE" as string,
 } as const;
 
 export function parseArguments(): {
@@ -237,6 +238,7 @@ export function getSecrets(safeAddress: string): Record<string, string> {
       .CONNECTION_CONFIGS_CONFIG_SAFE_CONTRACT_ADDRESSES as string,
     SAFE_ADDRESS: safeAddress,
     USE_OPENAI_EMBEDDING: OPENAI_SETTINGS.USE_OPENAI_EMBEDDING as string,
+    USE_OPENAI_EMBEDDING_TYPE: OPENAI_SETTINGS.USE_OPENAI_EMBEDDING_TYPE as string,
     SUBGRAPH_URL: SUBGRAPH_URLS.USER_SUBGRAPH_URL as string,
     MEME_SUBGRAPH_URL: SUBGRAPH_URLS.MEME_SUBGRAPH_URL as string,
     CHAIN_ID: CHAINS.BASE.CHAIN_ID as string,

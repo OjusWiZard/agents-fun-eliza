@@ -7,8 +7,22 @@ import * as path from "path";
 import { ROOMS } from "./config/index.ts";
 import type { RoomKey } from "./types.ts";
 
-const storePath = process.env.CONNECTION_CONFIGS_CONFIG_STORE_PATH as string;
-const logPath = path.join(storePath, "log.txt");
+const storePath = (process.env.STORE_PATH ?? process.env.CONNECTION_CONFIGS_CONFIG_STORE_PATH) as string;
+const logPath = path.join(storePath, "logs.txt");
+
+// Patch elizaLogger: every log method appends to logs.txt
+Object.entries({ log: "INFO", info: "INFO", warn: "WARN", error: "ERROR", success: "SUCCESS", verbose: "VERBOSE" })
+  .forEach(([method, level]) => {
+    const original = (elizaLogger as any)[method] as Function;
+    (elizaLogger as any)[method] = (...args: any[]) => {
+      original.apply(elizaLogger, args);
+      const timestamp = formatDate(new Date());
+      const formatted = `[${timestamp}] [${level}] ${args.join(" ")}\n`;
+      fs.appendFile(logPath, formatted, (err) => {
+        if (err) original("Failed writing to logs file:", err);
+      });
+    };
+  });
 
 const formatDate = (date: Date) => {
   const pad = (n: number) => (n < 10 ? "0" + n : n);
