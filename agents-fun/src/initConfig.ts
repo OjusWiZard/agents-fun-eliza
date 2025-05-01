@@ -43,7 +43,7 @@ export function loadConfig(): Config {
   process.env.TWITTER_USERNAME = process.env.TWITTER_USERNAME ?? requireEnv("CONNECTION_CONFIGS_CONFIG_TWIKIT_USERNAME");
   process.env.TWITTER_PASSWORD = process.env.TWITTER_PASSWORD ?? requireEnv("CONNECTION_CONFIGS_CONFIG_TWIKIT_PASSWORD");
   process.env.TWITTER_EMAIL = process.env.TWITTER_EMAIL ?? requireEnv("CONNECTION_CONFIGS_CONFIG_TWIKIT_EMAIL");
-  process.env.USE_OPENAI_EMBEDDING = process.env.USE_OPENAI_EMBEDDING ?? requireEnv("CONNECTION_CONFIGS_CONFIG_USE_OPENAI_EMBEDDING");
+  process.env.USE_OPENAI_EMBEDDING = process.env.USE_OPENAI_EMBEDDING ?? "true";
   process.env.USE_OPENAI_EMBEDDING_TYPE = process.env.USE_OPENAI_EMBEDDING_TYPE ?? "true";
 
   return {

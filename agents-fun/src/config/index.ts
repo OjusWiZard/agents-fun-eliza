@@ -47,7 +47,7 @@ export function prepareAgentPaths(): string {
 
 export const SUBGRAPH_URLS = {
   USER_SUBGRAPH_URL:
-    "https://subgraph.staging.autonolas.tech/subgraphs/name/autonolas-base" as string,
+    "https://subgraph.autonolas.tech/subgraphs/name/autonolas-base" as string,
   MEME_SUBGRAPH_URL:
     "https://agentsfun-indexer-production.up.railway.app" as string,
 } as const;
