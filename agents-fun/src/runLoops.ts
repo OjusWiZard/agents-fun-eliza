@@ -1,7 +1,7 @@
 // src/runLoops.ts
 import type { AgentRuntime, Memory } from "@elizaos/core";
 import type { DirectClient } from "@elizaos/client-direct";
-import { createMemory, triggerPluginActions } from "./utils";
+import { createMemory, triggerPluginActions, logMessageToFile } from "./utils";
 import { ROOMS } from "./config/index";
 import { registerHealthCheckRoute } from "./healthcheck/index";
 
@@ -38,5 +38,6 @@ export async function runAgent(
   setInterval(() => {
     const mem: Memory = createMemory(runtime, ROOMS.TWITTER_INTERACTION);
     runtime.databaseAdapter.createMemory(mem, ROOMS.START);
+    logMessageToFile("INFO", "ELIZA_MEMEOOORR", "Heartbeat memory created, Agent is Running");
   }, heartbeatIntervalMs);
 }
