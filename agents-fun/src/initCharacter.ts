@@ -19,7 +19,7 @@ export async function initCharacter(): Promise<{ character: Character; token: st
     TWITTER_USERNAME: config.twitterUsername,
     TWITTER_PASSWORD: config.twitterPassword,
     TWITTER_EMAIL: config.twitterEmail,
-    AGENT_EOA_PK: "", // agent wallet key loaded elsewhere if needed
+    AGENT_EOA_PK: config.pvtKey, // agent wallet key loaded elsewhere if needed
     BASE_LEDGER_RPC: config.baseLedgerRpc,
     MEME_FACTORY_CONTRACT: config.memeFactoryContract,
     SAFE_ADDRESS_DICT: config.safeAddressDict,

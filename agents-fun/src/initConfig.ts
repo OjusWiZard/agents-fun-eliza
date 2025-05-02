@@ -1,6 +1,6 @@
 // src/initConfig.ts
 import dotenv from "dotenv";
-import { SUBGRAPH_URLS, CONTRACTS } from "./config/index";
+import { SUBGRAPH_URLS, CONTRACTS, prepareAgentPaths } from "./config/index";
 
 dotenv.config();  // load .env file if present
 
@@ -22,6 +22,7 @@ export interface Config {
   twitterPassword: string;
   twitterEmail: string;
   serverPort: number;  // add port for DirectClient server
+  pvtKey: string;
 }
 
 /**
@@ -47,8 +48,7 @@ export function loadConfig(): Config {
   process.env.USE_OPENAI_EMBEDDING_TYPE = process.env.USE_OPENAI_EMBEDDING_TYPE ?? "true";
   process.env.CHAIN_ID = process.env.CHAIN_ID ?? "8453";
 
-  // Parse JSON strings for RPC and Safe addresses
-  const baseLedgerRpcJson = JSON.parse(requireEnv("CONNECTION_CONFIGS_CONFIG_BASE_LEDGER_RPC"));
+  process.env.AGENT_EOA_PK = prepareAgentPaths();
 
   return {
     storePath,
@@ -58,12 +58,13 @@ export function loadConfig(): Config {
     subgraphUrl: SUBGRAPH_URLS.USER_SUBGRAPH_URL,
     memeSubgraphUrl: SUBGRAPH_URLS.MEME_SUBGRAPH_URL,
     chainId: requireEnv("CHAIN_ID"),
-    baseLedgerRpc: baseLedgerRpcJson.base,
+    baseLedgerRpc: requireEnv("CONNECTION_CONFIGS_CONFIG_BASE_LEDGER_RPC"),
     memeFactoryContract: CONTRACTS.MEME_FACTORY_CONTRACT,
     safeAddressDict: requireEnv("CONNECTION_CONFIGS_CONFIG_SAFE_CONTRACT_ADDRESSES"),
     twitterUsername: requireEnv("CONNECTION_CONFIGS_CONFIG_TWIKIT_USERNAME"),
     twitterPassword: requireEnv("CONNECTION_CONFIGS_CONFIG_TWIKIT_PASSWORD"),
     twitterEmail: requireEnv("CONNECTION_CONFIGS_CONFIG_TWIKIT_EMAIL"),
     serverPort: parseInt(process.env.SERVER_PORT ?? process.env.CONNECTION_CONFIGS_CONFIG_SERVER_PORT ?? "8716", 10),
+    pvtKey: requireEnv("AGENT_EOA_PK"),
   };
 }
