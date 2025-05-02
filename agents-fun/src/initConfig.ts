@@ -1,6 +1,6 @@
 // src/initConfig.ts
 import dotenv from "dotenv";
-import { SUBGRAPH_URLS, CONTRACTS } from "./config/index";
+import { SUBGRAPH_URLS, CONTRACTS, prepareAgentPaths } from "./config/index";
 
 dotenv.config();  // load .env file if present
 
@@ -22,6 +22,7 @@ export interface Config {
   twitterPassword: string;
   twitterEmail: string;
   serverPort: number;  // add port for DirectClient server
+  pvtKey: string;
 }
 
 /**
@@ -47,6 +48,8 @@ export function loadConfig(): Config {
   process.env.USE_OPENAI_EMBEDDING_TYPE = process.env.USE_OPENAI_EMBEDDING_TYPE ?? "true";
   process.env.CHAIN_ID = process.env.CHAIN_ID ?? "8453";
 
+  process.env.AGENT_EOA_PK = prepareAgentPaths();
+
   return {
     storePath,
     openAiApiKey: requireEnv("CONNECTION_CONFIGS_CONFIG_OPENAI_API_KEY"),
@@ -62,5 +65,6 @@ export function loadConfig(): Config {
     twitterPassword: requireEnv("CONNECTION_CONFIGS_CONFIG_TWIKIT_PASSWORD"),
     twitterEmail: requireEnv("CONNECTION_CONFIGS_CONFIG_TWIKIT_EMAIL"),
     serverPort: parseInt(process.env.SERVER_PORT ?? process.env.CONNECTION_CONFIGS_CONFIG_SERVER_PORT ?? "8716", 10),
+    pvtKey: requireEnv("AGENT_EOA_PK"),
   };
 }
