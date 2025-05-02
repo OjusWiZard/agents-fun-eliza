@@ -45,6 +45,7 @@ export function loadConfig(): Config {
   process.env.TWITTER_EMAIL = process.env.TWITTER_EMAIL ?? requireEnv("CONNECTION_CONFIGS_CONFIG_TWIKIT_EMAIL");
   process.env.USE_OPENAI_EMBEDDING = process.env.USE_OPENAI_EMBEDDING ?? "true";
   process.env.USE_OPENAI_EMBEDDING_TYPE = process.env.USE_OPENAI_EMBEDDING_TYPE ?? "true";
+  process.env.CHAIN_ID = process.env.CHAIN_ID ?? "8453";
 
   return {
     storePath,
