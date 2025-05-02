@@ -47,6 +47,9 @@ export function loadConfig(): Config {
   process.env.USE_OPENAI_EMBEDDING_TYPE = process.env.USE_OPENAI_EMBEDDING_TYPE ?? "true";
   process.env.CHAIN_ID = process.env.CHAIN_ID ?? "8453";
 
+  // Parse JSON strings for RPC and Safe addresses
+  const baseLedgerRpcJson = JSON.parse(requireEnv("CONNECTION_CONFIGS_CONFIG_BASE_LEDGER_RPC"));
+
   return {
     storePath,
     openAiApiKey: requireEnv("CONNECTION_CONFIGS_CONFIG_OPENAI_API_KEY"),
@@ -55,7 +58,7 @@ export function loadConfig(): Config {
     subgraphUrl: SUBGRAPH_URLS.USER_SUBGRAPH_URL,
     memeSubgraphUrl: SUBGRAPH_URLS.MEME_SUBGRAPH_URL,
     chainId: requireEnv("CHAIN_ID"),
-    baseLedgerRpc: requireEnv("CONNECTION_CONFIGS_CONFIG_BASE_LEDGER_RPC"),
+    baseLedgerRpc: baseLedgerRpcJson.base,
     memeFactoryContract: CONTRACTS.MEME_FACTORY_CONTRACT,
     safeAddressDict: requireEnv("CONNECTION_CONFIGS_CONFIG_SAFE_CONTRACT_ADDRESSES"),
     twitterUsername: requireEnv("CONNECTION_CONFIGS_CONFIG_TWIKIT_USERNAME"),

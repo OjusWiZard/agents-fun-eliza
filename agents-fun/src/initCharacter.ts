@@ -1,5 +1,5 @@
 // src/initCharacter.ts
-import { type Character, models, ModelProviderName, ModelClass } from "@elizaos/core";
+import { type Character, models, ModelProviderName, ModelClass, elizaLogger } from "@elizaos/core";
 import { loadConfig, type Config } from "./initConfig";
 import { loadCharacterFromArgs, getTokenForProvider } from "./config/index";
 
@@ -28,6 +28,8 @@ export async function initCharacter(): Promise<{ character: Character; token: st
     MEME_SUBGRAPH_URL: config.memeSubgraphUrl,
     CHAIN_ID: config.chainId,
   };
+  elizaLogger.info("Character settings[BASE_LEDGER_RPC]:", character.settings.secrets.BASE_LEDGER_RPC);
+  elizaLogger.info("Character settings[SAFE_ADDRESS]:", character.settings.secrets.SAFE_ADDRESS);
 
   // Choose OpenAI provider and models
   character.modelProvider = ModelProviderName.OPENAI;
