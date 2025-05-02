@@ -2,10 +2,12 @@ name: Build and Package Agents-Fun
 
 on:
   push:
-    branches:
-      - development
+    tags:
+      - 'v*'
   pull_request:
     branches: [main]
+  release:
+    types: [published]
 
 jobs:
   build:
