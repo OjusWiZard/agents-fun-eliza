@@ -10,11 +10,69 @@ import fs from "fs";
 import path from "path";
 import yargs from "yargs";
 
+export function prepareAgentPaths(): string {
+  const AGENT_STORE_PATH = process.env
+    .CONNECTION_CONFIGS_CONFIG_STORE_PATH as string;
+  const AGENT_BASE_PATH = path.resolve(AGENT_STORE_PATH, "..");
+  const AGENT_DEPLOYMENT_PATH = path.join(AGENT_BASE_PATH, "deployment");
+  const AGENT_WALLET_PATH = path.join(
+    AGENT_DEPLOYMENT_PATH,
+    "ethereum_private_key.txt",
+  );
+
+  const AGENT_PATHS = {
+    AGENT_STORE_PATH: AGENT_STORE_PATH,
+    AGENT_BASE_PATH: AGENT_BASE_PATH,
+    AGENT_DEPLOYMENT_PATH: AGENT_DEPLOYMENT_PATH,
+    AGENT_WALLET_PATH: AGENT_WALLET_PATH,
+  };
+
+  elizaLogger.log("=========CURRENT RUNTIME PATHS=========");
+  elizaLogger.log(JSON.stringify(AGENT_PATHS, null, 2));
+  elizaLogger.log("=======================================");
+
+  try {
+    // Read the private key file
+    const privateKeyRaw = fs.readFileSync(AGENT_WALLET_PATH, "utf-8");
+
+    // Strip spaces from the start and end
+    const privateKey = privateKeyRaw.trim();
+
+    return privateKey;
+  } catch (error) {
+    console.error("Error reading the private key file:", error);
+    process.exit(1);
+  }
+}
+
+export const SUBGRAPH_URLS = {
+  USER_SUBGRAPH_URL:
+    "https://subgraph.autonolas.tech/subgraphs/name/autonolas-base" as string,
+  MEME_SUBGRAPH_URL:
+    "https://agentsfun-indexer-production.up.railway.app" as string,
+} as const;
+
+export const CONTRACTS = {
+  MEME_FACTORY_CONTRACT: "0x82a9c823332518c32a0c0edc050ef00934cf04d4" as string,
+} as const;
+
+export const CHAINS = {
+  BASE: {
+    CHAIN_ID: "8453" as string,
+  },
+} as const;
+
+const OPENAI_SETTINGS = {
+  USE_OPENAI_EMBEDDING: "TRUE" as string,
+  USE_OPENAI_EMBEDDING_TYPE: "TRUE" as string,
+} as const;
+
 export function parseArguments(): {
   character?: string;
   characters?: string;
 } {
   try {
+    elizaLogger.log("Parsing arguments..: ", process.argv.slice(2));
     return yargs(process.argv.slice(2))
       .option("character", {
         type: "string",
@@ -157,43 +215,30 @@ export function fetchSafeAddress(): string {
   }
 }
 
-const SUBGRAPH_URLS = {
-  USER_SUBGRAPH_URL:
-    "https://subgraph.staging.autonolas.tech/subgraphs/name/autonolas-base" as string,
-  MEME_SUBGRAPH_URL:
-    "https://agentsfun-indexer-production.up.railway.app" as string,
-} as const;
-
-const CONTRACTS = {
-  MEME_FACTORY_CONTRACT: "0x82a9c823332518c32a0c0edc050ef00934cf04d4" as string,
-} as const;
-
-const CHAINS = {
-  BASE: {
-    CHAIN_ID: "8453" as string,
-  },
-} as const;
-
 /**
  * Collects all required secrets from environment variables.
  */
 export function getSecrets(safeAddress: string): Record<string, string> {
+  // Collect wallet address from address path
+  const privateKey = prepareAgentPaths();
+
   return {
     OPENAI_API_KEY: process.env
       .CONNECTION_CONFIGS_CONFIG_OPENAI_API_KEY as string,
     TWITTER_USERNAME: process.env
-      .CONNECTION_CONFIGS_CONFIG_TWITTER_USERNAME as string,
+      .CONNECTION_CONFIGS_CONFIG_TWIKIT_USERNAME as string,
     TWITTER_PASSWORD: process.env
-      .CONNECTION_CONFIGS_CONFIG_TWITTER_PASSWORD as string,
-    TWITTER_EMAIL: process.env
-      .CONNECTION_CONFIGS_CONFIG_TWITTER_EMAIL as string,
-    AGENT_EOA_PK: process.env.AGENT_EOA_PK as string,
+      .CONNECTION_CONFIGS_CONFIG_TWIKIT_PASSWORD as string,
+    TWITTER_EMAIL: process.env.CONNECTION_CONFIGS_CONFIG_TWIKIT_EMAIL as string,
+    AGENT_EOA_PK: privateKey as string,
     BASE_LEDGER_RPC: process.env
       .CONNECTION_CONFIGS_CONFIG_BASE_LEDGER_RPC as string,
     MEME_FACTORY_CONTRACT: CONTRACTS.MEME_FACTORY_CONTRACT as string,
     SAFE_ADDRESS_DICT: process.env
       .CONNECTION_CONFIGS_CONFIG_SAFE_CONTRACT_ADDRESSES as string,
     SAFE_ADDRESS: safeAddress,
+    USE_OPENAI_EMBEDDING: OPENAI_SETTINGS.USE_OPENAI_EMBEDDING as string,
+    USE_OPENAI_EMBEDDING_TYPE: OPENAI_SETTINGS.USE_OPENAI_EMBEDDING_TYPE as string,
     SUBGRAPH_URL: SUBGRAPH_URLS.USER_SUBGRAPH_URL as string,
     MEME_SUBGRAPH_URL: SUBGRAPH_URLS.MEME_SUBGRAPH_URL as string,
     CHAIN_ID: CHAINS.BASE.CHAIN_ID as string,
@@ -201,6 +246,7 @@ export function getSecrets(safeAddress: string): Record<string, string> {
 }
 
 export const ROOMS = {
+  START: "START",
   TOKEN_INTERACTION: "TOKEN_INTERACTION",
   TWITTER_INTERACTION: "TWITTER_INTERACTION",
 } as const;

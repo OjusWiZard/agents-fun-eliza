@@ -1,0 +1,107 @@
+name: Build and Package Agents-Fun
+
+on:
+  push:
+    branches:
+      - development
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    # Define a matrix with OS and CPU architecture combinations.
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            os_name: linux
+            arch: x64
+          - os: ubuntu-latest
+            os_name: linux
+            arch: arm64
+          - os: macos-latest
+            os_name: darwin
+            arch: x64
+          - os: macos-latest
+            os_name: darwin
+            arch: arm64
+          - os: windows-latest
+            os_name: windows
+            arch: x64
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        working-directory: ./agents-fun
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare directories
+        working-directory: ./agents-fun
+        shell: bash
+        run: |
+          # Create the temporary assets directory
+          mkdir -p ./pkg_${{ matrix.os_name }}_${{ matrix.arch }}/libs/
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.4
+
+      - name: Build binary with Bun
+        working-directory: ./agents-fun
+        shell: bash
+        run: |
+          # Determine the output binary name based on OS.
+          BINARY="agentsFunEliza"
+          echo "Building binary: $BINARY"
+          bun build --compile ./src/index.ts --outfile=pkg_${{ matrix.os_name }}_${{ matrix.arch }}/$BINARY --external sharp --external onnxruntime-node --external @roamhq --external sqlite-vec
+          echo "Binary built successfully"
+
+      - name: Copy binary file to binary_builder pkg folder
+        shell: bash
+        run: |
+          BINARY="agentsFunEliza"
+          cp ./agents-fun/pkg_${{ matrix.os_name }}_${{ matrix.arch }}/$BINARY ./binary-builder/pkg/binary/
+          echo "Binary copied successfully"
+
+      - name: Install external dependencies
+        shell: bash
+        run: |
+          cd binary-builder/pkg/
+          npm install && npm fund
+          echo "External dependencies installed successfully to run binary file"
+
+      - name: Install rust dependencies
+        shell: bash
+        working-directory: ./binary-builder
+        run: |
+          rustup update stable
+          cargo build --release
+          echo "Rust dependencies installed successfully"
+
+      - name: Upload artifact (Linux and macOS)
+        if: matrix.os_name == 'linux' || matrix.os_name == 'darwin'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}
+          path: ./binary-builder/target/release/agentsFunEliza
+
+      - name: Upload artifact (Windows)
+        if: matrix.os_name == 'windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}
+          path: ./binary-builder/target/release/agentsFunEliza.exe

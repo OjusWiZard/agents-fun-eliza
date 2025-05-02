@@ -1,32 +1,37 @@
 {
   "compilerOptions": {
+    // Enable latest features
+    "target": "ESNext",
     "module": "ESNext",
-    "lib": ["ESNext", "dom"],
-    "moduleResolution": "Bundler",
-    "outDir": "dist",
-    "rootDir": ".",
-    "strict": false,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": false,
-    "allowImportingTsExtensions": true,
-    "declaration": true,
-    "emitDeclarationOnly": true,
-    "resolveJsonModule": true,
-    "noImplicitAny": false,
-    "allowJs": true,
-    "checkJs": false,
-    "noEmitOnError": false,
+    "lib": ["ESNext", "DOM"],
     "moduleDetection": "force",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "declaration": false,
+
+    // Bundler mode
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
     "allowArbitraryExtensions": true,
-    "customConditions": ["@elizaos/source"],
-    "types": ["node"]
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+
+    // Best practices
+    "strict": true,
+    "skipLibCheck": true,
+    "noFallthroughCasesInSwitch": true,
+    // Some stricter flags
+    "noUnusedLocals": true,
+    // "removeComments": true,
+
+    "baseUrl": "./",
+    "paths": {
+      "config": ["./src/config/index.ts"],
+      "utils": ["./src/utils.ts"],
+      "database": ["./src/database/index.ts"],
+      "cache": ["./src/cache/index.ts"]
+    }
   },
-  "ts-node": {
-    "experimentalSpecifierResolution": "node",
-    "transpileOnly": true,
-    "esm": true
-  },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist", "src/**/*.d.ts", "types/**/*.test.ts"]
+  "include": ["src/**/*.ts", "characters/*.json"], // Ensures only necessary files are compiled
+  "exclude": ["node_modules", "sharp", "onnxruntime-node", "@roamhq"] // Excludes unnecessary folders
 }
