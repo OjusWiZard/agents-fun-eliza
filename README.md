@@ -54,6 +54,7 @@ For now, the agent uses ETH exclusively; support for other networks (such as CEL
 
 For more details on how to develop and run the agent, visit the [Agent Development Guide](docs/agents.md). This Eliza agent is powered by the olas sdk backend which provides the modularity of building agents in multiple frameworks and run using olas operate middleware, which provides a robust and scalable platform for deploying and managing agents.
 
+For information on building binary executables for different platforms, see the [Binary Building Guide](docs/binary_building.md).
 
 ## Acknowledgements
 
