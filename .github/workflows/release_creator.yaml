@@ -29,7 +29,7 @@ jobs:
     steps:
       - name: Checkout repository
         # Pin action with SHA for security
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        uses: actions/checkout@4
         with:
           fetch-depth: 1  # Shallow clone for faster checkout
 
@@ -45,7 +45,7 @@ jobs:
           echo "Package version: ${{ steps.package_version.outputs.version }}"
 
       - name: Download artifacts from triggering workflow
-        uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427 # v4.1.4
+        uses: actions/download-artifact@4
         id: download
         with:
           # Use GITHUB_TOKEN with minimal permissions
@@ -85,7 +85,7 @@ jobs:
       - name: Create GitHub Release
         if: steps.check_artifacts.outputs.artifacts_exist == 'true'
         # Pin action with SHA for security
-        uses: softprops/action-gh-release@9d7c94cfd0a1f3ed45544c887983e9fa900f0564 # v2.0.4
+        uses: softprops/action-gh-release@2
         with:
           tag_name: v${{ steps.package_version.outputs.version }}
           name: Release v${{ steps.package_version.outputs.version }}
