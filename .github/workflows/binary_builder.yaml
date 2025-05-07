@@ -2,8 +2,8 @@ name: Build and Package Agents-Fun
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
   pull_request:
     branches: [main]
   release:
@@ -46,6 +46,12 @@ jobs:
         with:
           node-version: 22
 
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v4
+        with:
+          path: agents-fun/node_modules
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('agents-fun/pnpm-lock.yaml') }}
+
       - name: Install dependencies
         working-directory: ./agents-fun
         run: pnpm install --frozen-lockfile
@@ -78,6 +84,15 @@ jobs:
           BINARY="agentsFunEliza"
           cp ./agents-fun/pkg_${{ matrix.os_name }}_${{ matrix.arch }}/$BINARY ./binary-builder/pkg/binary/
           echo "Binary copied successfully"
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            binary-builder/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('binary-builder/Cargo.lock') }}
 
       - name: Install external dependencies
         shell: bash
@@ -121,7 +136,7 @@ jobs:
       - name: Rename binaries with release tag (Windows)
         if: github.event_name == 'release' && matrix.os_name == 'windows'
         run: |
-          copy ./binary-builder/target/release/agentsFunEliza.exe ./binary-builder/target/release/agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_${{ env.TAG }}.exe
+          copy .\binary-builder\target\release\agentsFunEliza.exe .\binary-builder\target\release\agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_${{ env.TAG }}.exe
 
       - name: Attach binaries to release
         if: github.event_name == 'release'
