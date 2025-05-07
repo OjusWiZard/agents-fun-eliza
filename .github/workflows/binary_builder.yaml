@@ -58,7 +58,7 @@ jobs:
     steps:
       - name: Checkout repository
         # Pin action with SHA for security
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1  # Shallow clone for faster checkout
       
@@ -74,13 +74,13 @@ jobs:
       
       # Setup and cache pnpm
       - name: Install pnpm
-        uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v4.0.0
+        uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
       
       # Setup and cache Node.js
       - name: Setup Node.js
-        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
@@ -93,7 +93,7 @@ jobs:
       
       # Setup Bun with caching
       - name: Setup Bun
-        uses: oven-sh/setup-bun@d3603274aca5625baad52ec06108517a089cdd00 # v2.2.0
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ env.BUN_VERSION }}
       
@@ -140,7 +140,7 @@ jobs:
       # Setup and cache Rust
       - name: Setup Rust
         # Note: actions-rs/toolchain is deprecated but we'll use it with a pinned SHA
-        uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           profile: minimal
@@ -148,7 +148,7 @@ jobs:
       
       # Cache Rust dependencies
       - name: Cache Rust dependencies
-        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -187,7 +187,7 @@ jobs:
       
       # Upload artifact (unified approach)
       - name: Upload artifact
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.1
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ./release-assets/${{ env.ARTIFACT_NAME }}${{ matrix.os_name == 'windows' && '.exe' || '' }}
