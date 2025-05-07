@@ -128,8 +128,16 @@ jobs:
             cp ./binary-builder/target/release/agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_${VERSION} ./release-assets/
           fi
 
-      - name: Upload artifact
+      - name: Upload artifact (Linux and macOS)
+        if: matrix.os_name == 'linux' || matrix.os_name == 'darwin'
         uses: actions/upload-artifact@v4
         with:
           name: agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}
-          path: ./release-assets/*
+          path: ./release-assets/agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_*
+
+      - name: Upload artifact (Windows)
+        if: matrix.os_name == 'windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}
+          path: ./release-assets/agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_*.exe
