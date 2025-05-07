@@ -7,37 +7,116 @@ on:
       - completed
     branches:
       - main
+  workflow_dispatch:  # Allow manual triggering
 
+# Define specific permissions (principle of least privilege)
 permissions:
-  contents: write
+  contents: write  # Required to create releases
+  actions: read    # Required to access workflow artifacts
+  
+# Cancel in-progress runs on the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   create-release:
+    name: Create GitHub Release
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15  # Prevent runaway workflows
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        # Pin action with SHA for security
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          fetch-depth: 1  # Shallow clone for faster checkout
 
       - name: Get package version
         id: package_version
         run: echo "version=$(jq -r '.version' agents-fun/package.json)" >> $GITHUB_OUTPUT
+        
+      - name: Log workflow information
+        run: |
+          echo "Triggered by workflow run ID: ${{ github.event.workflow_run.id }}"
+          echo "Workflow name: ${{ github.event.workflow_run.name }}"
+          echo "Workflow conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "Package version: ${{ steps.package_version.outputs.version }}"
 
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
+      - name: Download artifacts from triggering workflow
+        uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427 # v4.1.4
+        id: download
         with:
+          # Use GITHUB_TOKEN with minimal permissions
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
           path: ./release_assets
+          merge-multiple: true
+        continue-on-error: true
 
-      - name: Display downloaded artifacts
-        run: ls -R ./release_assets
+      - name: Check if artifacts were downloaded
+        id: check_artifacts
+        run: |
+          echo "Checking downloaded artifacts..."
+          if [ -d "./release_assets" ] && [ "$(ls -A ./release_assets 2>/dev/null)" ]; then
+            echo "Artifacts found:"
+            find ./release_assets -type f | sort
+            echo "artifact_count=$(find ./release_assets -type f | wc -l)" >> $GITHUB_OUTPUT
+            echo "artifacts_exist=true" >> $GITHUB_OUTPUT
+          else
+            echo "No artifacts were downloaded!"
+            echo "artifacts_exist=false" >> $GITHUB_OUTPUT
+            echo "artifact_count=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Prepare artifacts for release
+        if: steps.check_artifacts.outputs.artifacts_exist == 'true'
+        run: |
+          # Create a flat structure for all artifacts
+          mkdir -p ./release_files
+          
+          # Find all binary artifacts and copy them to release_files
+          find ./release_assets -type f -name "agentsFunEliza_*" -exec cp {} ./release_files/ \;
+          
+          echo "Artifacts prepared for release:"
+          ls -la ./release_files/
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        if: steps.check_artifacts.outputs.artifacts_exist == 'true'
+        # Pin action with SHA for security
+        uses: softprops/action-gh-release@9d7c94cfd0a1f3ed45544c887983e9fa900f0564 # v2.0.4
         with:
           tag_name: v${{ steps.package_version.outputs.version }}
           name: Release v${{ steps.package_version.outputs.version }}
-          files: |
-            ./release_assets/agentsFunEliza_*
+          files: ./release_files/*
+          fail_on_unmatched_files: false
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## Release v${{ steps.package_version.outputs.version }}
+            
+            This release contains ${{ steps.check_artifacts.outputs.artifact_count }} binary artifacts.
+            
+            ### Supported platforms:
+            - Linux (x64, arm64)
+            - macOS (x64, arm64)
+            - Windows (x64)
+            
+            ### Installation
+            Download the appropriate binary for your platform and follow the instructions in the [documentation](docs/binary_building.md).
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use GITHUB_TOKEN with minimal permissions
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Handle missing artifacts
+        if: steps.check_artifacts.outputs.artifacts_exist == 'false'
+        run: |
+          echo "::error::No artifacts were found from the binary_builder workflow!"
+          echo "This could be due to:"
+          echo "1. Artifacts expired (GitHub stores artifacts for 90 days)"
+          echo "2. Artifact upload failed in the binary_builder workflow"
+          echo "3. Insufficient permissions to access artifacts"
+          echo "4. Incorrect artifact naming or path"
+          exit 1
