@@ -105,40 +105,28 @@ jobs:
           cargo build --release
           echo "Rust dependencies installed successfully"
 
+      - name: Rename binary with OS, CPU, and version (Linux and macOS)
+        if: matrix.os_name == 'linux' || matrix.os_name == 'darwin'
+        run: |
+          VERSION=$(jq -r '.version' agents-fun/package.json)
+          mv ./binary-builder/target/release/agentsFunEliza ./binary-builder/target/release/agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_${VERSION}
+
+      - name: Rename binary with OS, CPU, and version (Windows)
+        if: matrix.os_name == 'windows'
+        run: |
+          $VERSION = (Get-Content agents-fun/package.json | ConvertFrom-Json).version
+          Rename-Item -Path ./binary-builder/target/release/agentsFunEliza.exe -NewName agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_${VERSION}.exe
+
       - name: Upload artifact (Linux and macOS)
         if: matrix.os_name == 'linux' || matrix.os_name == 'darwin'
         uses: actions/upload-artifact@v4
         with:
           name: agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}
-          path: ./binary-builder/target/release/agentsFunEliza
+          path: ./binary-builder/target/release/agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_${VERSION}
 
       - name: Upload artifact (Windows)
         if: matrix.os_name == 'windows'
         uses: actions/upload-artifact@v4
         with:
           name: agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}
-          path: ./binary-builder/target/release/agentsFunEliza.exe
-
-      - name: Extract release tag
-        if: github.event_name == 'release'
-        id: get_tag
-        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-
-      - name: Rename binaries with release tag (Linux and macOS)
-        if: github.event_name == 'release' && (matrix.os_name == 'linux' || matrix.os_name == 'darwin')
-        run: |
-          cp ./binary-builder/target/release/agentsFunEliza ./binary-builder/target/release/agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_${{ env.TAG }}
-
-      - name: Rename binaries with release tag (Windows)
-        if: github.event_name == 'release' && matrix.os_name == 'windows'
-        run: |
-          copy .\binary-builder\target\release\agentsFunEliza.exe .\binary-builder\target\release\agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_${{ env.TAG }}.exe
-
-      - name: Attach binaries to release
-        if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            ${{ matrix.os_name == 'windows' && format('./binary-builder/target/release/agentsFunEliza_{0}_{1}_{2}.exe', matrix.os_name, matrix.arch, env.TAG) || format('./binary-builder/target/release/agentsFunEliza_{0}_{1}_{2}', matrix.os_name, matrix.arch, env.TAG) }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          path: ./binary-builder/target/release/agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_${VERSION}.exe
