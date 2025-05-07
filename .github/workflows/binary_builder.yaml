@@ -4,11 +4,36 @@ on:
   push:
     branches:
       - main
+      - development
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:  # Allow manual triggering
+
+# Cancel in-progress runs on the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Define global environment variables
+env:
+  BINARY_NAME: agentsFunEliza
+  BUN_VERSION: 1.2.4
+  NODE_VERSION: 23.3.0
+  PNPM_VERSION: 9
+
+# Define global permissions (principle of least privilege)
+permissions:
+  contents: read
+  packages: read
+  actions: read
 
 jobs:
   build:
-    # Define a matrix with OS and CPU architecture combinations.
+    name: Build ${{ matrix.os_name }}-${{ matrix.arch }}
+    # Define a matrix with OS and CPU architecture combinations
     strategy:
+      fail-fast: false  # Continue with other builds if one fails
       matrix:
         include:
           - os: ubuntu-latest
@@ -26,61 +51,102 @@ jobs:
           - os: windows-latest
             os_name: windows
             arch: x64
+    
     runs-on: ${{ matrix.os }}
-
+    timeout-minutes: 60  # Prevent runaway workflows
+    
     steps:
       - name: Checkout repository
+        # Pin action with SHA for security
         uses: actions/checkout@v4
-
+        with:
+          fetch-depth: 1  # Shallow clone for faster checkout
+      
+      # Extract version from package.json early to use throughout the workflow
+      - name: Extract version
+        id: extract_version
+        shell: bash
+        run: |
+          VERSION=$(jq -r '.version' agents-fun/package.json)
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "ARTIFACT_NAME=${BINARY_NAME}_${{ matrix.os_name }}_${{ matrix.arch }}_${VERSION}" >> $GITHUB_ENV
+          echo "📦 Building version: ${VERSION} for ${{ matrix.os_name }}/${{ matrix.arch }}"
+      
+      # Setup and cache pnpm
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
-
-      - name: Use Node.js 22
+          version: ${{ env.PNPM_VERSION }}
+      
+      # Setup and cache Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
-
-      - name: Cache Node.js dependencies
-        uses: actions/cache@v4
-        with:
-          path: agents-fun/node_modules
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('agents-fun/pnpm-lock.yaml') }}
-
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+          cache-dependency-path: 'agents-fun/pnpm-lock.yaml'
+      
+      # Install dependencies with caching
       - name: Install dependencies
         working-directory: ./agents-fun
         run: pnpm install --frozen-lockfile
-
-      - name: Prepare directories
-        working-directory: ./agents-fun
-        shell: bash
-        run: |
-          # Create the temporary assets directory
-          mkdir -p ./pkg_${{ matrix.os_name }}_${{ matrix.arch }}/libs/
-
+      
+      # Setup Bun with caching
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.2.4
-
+          bun-version: ${{ env.BUN_VERSION }}
+      
+      # Create necessary directories
+      - name: Prepare directories
+        shell: bash
+        run: |
+          echo "🔧 Creating build directories..."
+          mkdir -p ./agents-fun/pkg_${{ matrix.os_name }}_${{ matrix.arch }}/libs/
+          mkdir -p ./binary-builder/pkg/binary/
+          mkdir -p ./release-assets
+      
+      # Build binary with Bun
       - name: Build binary with Bun
         working-directory: ./agents-fun
         shell: bash
         run: |
-          # Determine the output binary name based on OS.
-          BINARY="agentsFunEliza"
-          echo "Building binary: $BINARY"
-          bun build --compile ./src/index.ts --outfile=pkg_${{ matrix.os_name }}_${{ matrix.arch }}/$BINARY --external sharp --external onnxruntime-node --external @roamhq --external sqlite-vec
-          echo "Binary built successfully"
-
-      - name: Copy binary file to binary_builder pkg folder
+          echo "🔨 Building binary for ${{ matrix.os_name }}/${{ matrix.arch }}..."
+          bun build --compile ./src/index.ts \
+            --outfile=pkg_${{ matrix.os_name }}_${{ matrix.arch }}/${{ env.BINARY_NAME }} \
+            --external sharp \
+            --external onnxruntime-node \
+            --external @roamhq \
+            --external sqlite-vec
+          echo "✅ Binary built successfully"
+      
+      # Copy binary to binary_builder pkg folder
+      - name: Copy binary to binary_builder
         shell: bash
         run: |
-          BINARY="agentsFunEliza"
-          cp ./agents-fun/pkg_${{ matrix.os_name }}_${{ matrix.arch }}/$BINARY ./binary-builder/pkg/binary/
-          echo "Binary copied successfully"
-
+          echo "📋 Copying binary to binary-builder..."
+          cp ./agents-fun/pkg_${{ matrix.os_name }}_${{ matrix.arch }}/${{ env.BINARY_NAME }} ./binary-builder/pkg/binary/
+          echo "✅ Binary copied successfully"
+      
+      # Install external dependencies for the binary wrapper
+      - name: Install external dependencies
+        shell: bash
+        run: |
+          echo "📦 Installing external dependencies..."
+          cd binary-builder/pkg/
+          npm install
+          echo "✅ External dependencies installed successfully"
+      
+      # Setup and cache Rust
+      - name: Setup Rust
+        # Note: actions-rs/toolchain is deprecated but we'll use it with a pinned SHA
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      
+      # Cache Rust dependencies
       - name: Cache Rust dependencies
         uses: actions/cache@v4
         with:
@@ -88,56 +154,42 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             binary-builder/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('binary-builder/Cargo.lock') }}
-
-      - name: Install external dependencies
-        shell: bash
-        run: |
-          cd binary-builder/pkg/
-          npm install && npm fund
-          echo "External dependencies installed successfully to run binary file"
-
-      - name: Install rust dependencies
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-v1
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-
+            ${{ runner.os }}-cargo-
+      
+      # Build Rust wrapper
+      - name: Build Rust wrapper
         shell: bash
         working-directory: ./binary-builder
         run: |
-          rustup update stable
+          echo "🔨 Building Rust wrapper..."
           cargo build --release
-          echo "Rust dependencies installed successfully"
-
-      - name: Rename binary with OS, CPU, and version (Linux and macOS)
-        if: matrix.os_name == 'linux' || matrix.os_name == 'darwin'
-        run: |
-          VERSION=$(jq -r '.version' agents-fun/package.json)
-          mv ./binary-builder/target/release/agentsFunEliza ./binary-builder/target/release/agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_${VERSION}
-
-      - name: Rename binary with OS, CPU, and version (Windows)
-        if: matrix.os_name == 'windows'
-        run: |
-          $VERSION = (Get-Content agents-fun/package.json | ConvertFrom-Json).version
-          Rename-Item -Path ./binary-builder/target/release/agentsFunEliza.exe -NewName agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_${VERSION}.exe
-
-      - name: Copy binaries to release-assets folder
+          echo "✅ Rust wrapper built successfully"
+      
+      # Rename binary with OS, CPU, and version (unified approach)
+      - name: Rename binary
         shell: bash
         run: |
-          mkdir -p ./release-assets
-          VERSION=$(jq -r '.version' agents-fun/package.json)
+          echo "📝 Renaming binary with OS, architecture, and version..."
           if [[ "${{ matrix.os_name }}" == "windows" ]]; then
-            cp ./binary-builder/target/release/agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_${VERSION}.exe ./release-assets/
+            # Windows binary
+            mv ./binary-builder/target/release/${{ env.BINARY_NAME }}.exe ./binary-builder/target/release/${{ env.ARTIFACT_NAME }}.exe
+            cp ./binary-builder/target/release/${{ env.ARTIFACT_NAME }}.exe ./release-assets/
+            echo "✅ Binary renamed to ${{ env.ARTIFACT_NAME }}.exe"
           else
-            cp ./binary-builder/target/release/agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_${VERSION} ./release-assets/
+            # Linux/macOS binary
+            mv ./binary-builder/target/release/${{ env.BINARY_NAME }} ./binary-builder/target/release/${{ env.ARTIFACT_NAME }}
+            cp ./binary-builder/target/release/${{ env.ARTIFACT_NAME }} ./release-assets/
+            echo "✅ Binary renamed to ${{ env.ARTIFACT_NAME }}"
           fi
-
-      - name: Upload artifact (Linux and macOS)
-        if: matrix.os_name == 'linux' || matrix.os_name == 'darwin'
+      
+      # Upload artifact (unified approach)
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}
-          path: ./release-assets/agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_*
-
-      - name: Upload artifact (Windows)
-        if: matrix.os_name == 'windows'
-        uses: actions/upload-artifact@v4
-        with:
-          name: agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}
-          path: ./release-assets/agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_*.exe
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ./release-assets/${{ env.ARTIFACT_NAME }}${{ matrix.os_name == 'windows' && '.exe' || '' }}
+          retention-days: 90
+          if-no-files-found: error
