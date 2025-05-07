@@ -42,12 +42,6 @@ jobs:
         with:
           node-version: 22
 
-      - name: Cache Node.js dependencies
-        uses: actions/cache@v4
-        with:
-          path: agents-fun/node_modules
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('agents-fun/pnpm-lock.yaml') }}
-
       - name: Install dependencies
         working-directory: ./agents-fun
         run: pnpm install --frozen-lockfile
@@ -80,15 +74,6 @@ jobs:
           BINARY="agentsFunEliza"
           cp ./agents-fun/pkg_${{ matrix.os_name }}_${{ matrix.arch }}/$BINARY ./binary-builder/pkg/binary/
           echo "Binary copied successfully"
-
-      - name: Cache Rust dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            binary-builder/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('binary-builder/Cargo.lock') }}
 
       - name: Install external dependencies
         shell: bash
