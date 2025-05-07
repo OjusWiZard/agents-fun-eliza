@@ -117,16 +117,27 @@ jobs:
           $VERSION = (Get-Content agents-fun/package.json | ConvertFrom-Json).version
           Rename-Item -Path ./binary-builder/target/release/agentsFunEliza.exe -NewName agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_${VERSION}.exe
 
+      - name: Copy binaries to release-assets folder
+        shell: bash
+        run: |
+          mkdir -p ./release-assets
+          VERSION=$(jq -r '.version' agents-fun/package.json)
+          if [[ "${{ matrix.os_name }}" == "windows" ]]; then
+            cp ./binary-builder/target/release/agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_${VERSION}.exe ./release-assets/
+          else
+            cp ./binary-builder/target/release/agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_${VERSION} ./release-assets/
+          fi
+
       - name: Upload artifact (Linux and macOS)
         if: matrix.os_name == 'linux' || matrix.os_name == 'darwin'
         uses: actions/upload-artifact@v4
         with:
           name: agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}
-          path: ./binary-builder/target/release/agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_${VERSION}
+          path: ./release-assets/agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_*
 
       - name: Upload artifact (Windows)
         if: matrix.os_name == 'windows'
         uses: actions/upload-artifact@v4
         with:
           name: agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}
-          path: ./binary-builder/target/release/agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_${VERSION}.exe
+          path: ./release-assets/agentsFunEliza_${{ matrix.os_name }}_${{ matrix.arch }}_*.exe

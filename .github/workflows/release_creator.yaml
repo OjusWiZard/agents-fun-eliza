@@ -29,11 +29,15 @@ jobs:
         with:
           path: ./release_assets
 
+      - name: Display downloaded artifacts
+        run: ls -R ./release_assets
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.package_version.outputs.version }}
           name: Release v${{ steps.package_version.outputs.version }}
-          files: ./release_assets/**/*
+          files: |
+            ./release_assets/agentsFunEliza_*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
