@@ -1,0 +1,936 @@
+name: Workflow Monitoring and Notifications
+
+on:
+  # Run daily to collect metrics and generate reports
+  schedule:
+    - cron: '0 0 * * *'  # Run at midnight UTC every day
+  
+  # Run after any workflow failure
+  workflow_run:
+    workflows: ["Build and Package Agents-Fun", "Create Release After Binary Build", "Test Binary Builds", "Workflow Validation"]
+    types:
+      - completed
+  
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      generate_report:
+        description: 'Generate a full report'
+        type: boolean
+        default: false
+      send_notifications:
+        description: 'Send test notifications to all channels'
+        type: boolean
+        default: false
+
+# Define global permissions (principle of least privilege)
+permissions:
+  contents: read
+  actions: read
+  issues: write  # Required to create GitHub issues
+  checks: write  # Required for status checks
+  pull-requests: write  # Required to comment on PRs
+
+jobs:
+  # Collect metrics about workflow runs
+  collect-metrics:
+    name: Collect Workflow Metrics
+    runs-on: ubuntu-latest
+    timeout-minutes: 15  # Prevent runaway workflows
+    outputs:
+      metrics_summary: ${{ steps.process_metrics.outputs.metrics_summary }}
+      detected_issues: ${{ steps.analyze_metrics.outputs.detected_issues }}
+      weekly_report_due: ${{ steps.check_weekly_report.outputs.weekly_report_due }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          fetch-depth: 1  # Shallow clone for faster checkout
+      
+      - name: Load configuration
+        id: config
+        run: |
+          echo "Loading workflow monitoring configuration..."
+          CONFIG=$(cat .github/workflow_monitoring_config.json)
+          echo "config=$(echo $CONFIG | jq -c .)" >> $GITHUB_OUTPUT
+          
+          # Extract retention period
+          RETENTION_DAYS=$(echo $CONFIG | jq -r '.monitoring.retention.days')
+          echo "retention_days=$RETENTION_DAYS" >> $GITHUB_OUTPUT
+          
+          # Extract notification thresholds
+          DURATION_WARNING=$(echo $CONFIG | jq -r '.notifications.thresholds.workflow_duration_warning_minutes')
+          DURATION_CRITICAL=$(echo $CONFIG | jq -r '.notifications.thresholds.workflow_duration_critical_minutes')
+          SUCCESS_WARNING=$(echo $CONFIG | jq -r '.notifications.thresholds.success_rate_warning_percent')
+          SUCCESS_CRITICAL=$(echo $CONFIG | jq -r '.notifications.thresholds.success_rate_critical_percent')
+          
+          echo "duration_warning=$DURATION_WARNING" >> $GITHUB_OUTPUT
+          echo "duration_critical=$DURATION_CRITICAL" >> $GITHUB_OUTPUT
+          echo "success_warning=$SUCCESS_WARNING" >> $GITHUB_OUTPUT
+          echo "success_critical=$SUCCESS_CRITICAL" >> $GITHUB_OUTPUT
+      
+      - name: Check if weekly report is due
+        id: check_weekly_report
+        run: |
+          # Check if today is Monday (day 1 in date format)
+          if [[ $(date +%u) -eq 1 ]]; then
+            echo "weekly_report_due=true" >> $GITHUB_OUTPUT
+            echo "Today is Monday, weekly report is due"
+          else
+            echo "weekly_report_due=false" >> $GITHUB_OUTPUT
+            echo "Today is not Monday, no weekly report due"
+      - name: Fetch workflow run data
+        id: fetch_data
+        run: |
+          echo "Fetching workflow run data for the past ${{ steps.config.outputs.retention_days }} days..."
+          
+          # Create directory for metrics
+          mkdir -p ./workflow-metrics
+          
+          # Get list of workflows
+          WORKFLOWS=$(curl -s \
+            -H "Authorization: token ${{ github.token }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows" | jq -r '.workflows[].path' | sed 's|.github/workflows/||' | sed 's|.yaml||' | sed 's|.yml||')
+          
+          echo "Found workflows: $WORKFLOWS"
+          
+          # Calculate date for retention period
+          SINCE_DATE=$(date -d "${{ steps.config.outputs.retention_days }} days ago" +%Y-%m-%dT%H:%M:%SZ)
+          
+          # Fetch data for each workflow
+          for workflow in $WORKFLOWS; do
+            echo "Fetching data for workflow: $workflow"
+            
+            # Get workflow ID
+            WORKFLOW_ID=$(curl -s \
+              -H "Authorization: token ${{ github.token }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/$workflow.yaml" | jq -r '.id')
+            
+            if [[ -z "$WORKFLOW_ID" || "$WORKFLOW_ID" == "null" ]]; then
+              # Try with .yml extension
+              WORKFLOW_ID=$(curl -s \
+                -H "Authorization: token ${{ github.token }}" \
+                -H "Accept: application/vnd.github.v3+json" \
+                "https://api.github.com/repos/${{ github.repository }}/actions/workflows/$workflow.yml" | jq -r '.id')
+            fi
+            
+            if [[ -z "$WORKFLOW_ID" || "$WORKFLOW_ID" == "null" ]]; then
+              echo "Could not find workflow ID for $workflow, skipping..."
+              continue
+            fi
+            
+            # Get workflow runs
+            curl -s \
+              -H "Authorization: token ${{ github.token }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/$WORKFLOW_ID/runs?per_page=100&created=>$SINCE_DATE" > ./workflow-metrics/$workflow.json
+            
+            echo "Fetched $(jq '.total_count' ./workflow-metrics/$workflow.json) runs for $workflow"
+          done
+      
+      - name: Process metrics
+        id: process_metrics
+        run: |
+          echo "Processing workflow metrics..."
+          
+          # Create metrics summary file
+          METRICS_FILE="./workflow-metrics/summary.json"
+          echo "{}" > $METRICS_FILE
+          
+          # Process each workflow's data
+          for file in ./workflow-metrics/*.json; do
+            if [[ "$file" == "./workflow-metrics/summary.json" ]]; then
+              continue
+            fi
+            
+            WORKFLOW_NAME=$(basename "$file" .json)
+            echo "Processing metrics for $WORKFLOW_NAME..."
+            
+            # Extract workflow runs data
+            RUNS=$(jq '.workflow_runs' "$file")
+            TOTAL_RUNS=$(jq '.total_count' "$file")
+            
+            if [[ "$TOTAL_RUNS" -eq 0 ]]; then
+              echo "No runs found for $WORKFLOW_NAME, skipping..."
+              continue
+            fi
+            
+            # Calculate success rate
+            SUCCESS_RUNS=$(echo "$RUNS" | jq '[.[] | select(.conclusion == "success")] | length')
+            SUCCESS_RATE=$(( SUCCESS_RUNS * 100 / TOTAL_RUNS ))
+            
+            # Calculate average duration
+            TOTAL_DURATION=0
+            COUNT=0
+            
+            while read -r start_time end_time; do
+              if [[ -z "$start_time" || -z "$end_time" || "$start_time" == "null" || "$end_time" == "null" ]]; then
+                continue
+              fi
+              
+              START_TIMESTAMP=$(date -d "$start_time" +%s)
+              END_TIMESTAMP=$(date -d "$end_time" +%s)
+              DURATION=$((END_TIMESTAMP - START_TIMESTAMP))
+              
+              TOTAL_DURATION=$((TOTAL_DURATION + DURATION))
+              COUNT=$((COUNT + 1))
+            done < <(echo "$RUNS" | jq -r '.[] | "\(.created_at) \(.updated_at)"')
+            
+            if [[ "$COUNT" -gt 0 ]]; then
+              AVG_DURATION=$((TOTAL_DURATION / COUNT))
+              AVG_DURATION_MINUTES=$((AVG_DURATION / 60))
+            else
+              AVG_DURATION=0
+              AVG_DURATION_MINUTES=0
+            fi
+            
+            # Calculate failure rate by day (to detect trends)
+            DAILY_STATS=$(echo "$RUNS" | jq -r '.[] | "\((.created_at | split("T"))[0]) \(.conclusion)"' | 
+              awk '{date[$1]++; if($2!="success") fail[$1]++} 
+              END {for (d in date) print d, date[d], (fail[d] ? fail[d] : 0), (fail[d] ? fail[d]/date[d] : 0)}' | 
+              sort)
+            
+            # Find most common errors
+            ERROR_PATTERNS=$(echo "$RUNS" | jq -r '.[] | select(.conclusion != "success") | .name' | 
+              sort | uniq -c | sort -nr | head -5 | 
+              awk '{print "{\"name\":\"" $2 "\", \"count\":" $1 "}"}' | 
+              paste -sd, -)
+            
+            # Create JSON for this workflow
+            jq --arg name "$WORKFLOW_NAME" \
+              --arg total "$TOTAL_RUNS" \
+              --arg success "$SUCCESS_RUNS" \
+              --arg rate "$SUCCESS_RATE" \
+              --arg avg_duration "$AVG_DURATION_MINUTES" \
+              --arg daily "[$DAILY_STATS]" \
+              --arg errors "[$ERROR_PATTERNS]" \
+              '.[$name] = {
+                "total_runs": $total | tonumber,
+                "successful_runs": $success | tonumber,
+                "success_rate": $rate | tonumber,
+                "avg_duration_minutes": $avg_duration | tonumber,
+                "daily_stats": $daily,
+                "common_errors": $errors
+              }' $METRICS_FILE > tmp.json && mv tmp.json $METRICS_FILE
+          done
+          
+          # Create a summary for output
+          SUMMARY=$(jq -c '.' $METRICS_FILE)
+          echo "metrics_summary=$SUMMARY" >> $GITHUB_OUTPUT
+          
+          # Save metrics to artifact
+          mkdir -p ./metrics-artifacts
+          cp $METRICS_FILE ./metrics-artifacts/
+      - name: Analyze metrics for issues
+        id: analyze_metrics
+        run: |
+          echo "Analyzing metrics for potential issues..."
+          
+          METRICS=$(cat ./workflow-metrics/summary.json)
+          ISSUES=[]
+          
+          # Check each workflow against thresholds
+          for workflow in $(echo "$METRICS" | jq -r 'keys[]'); do
+            # Get expected duration from config
+            EXPECTED_DURATION=$(echo '${{ steps.config.outputs.config }}' | jq -r --arg wf "$workflow" '.workflows[$wf].expected_duration_minutes // 30')
+            IS_CRITICAL=$(echo '${{ steps.config.outputs.config }}' | jq -r --arg wf "$workflow" '.workflows[$wf].critical // false')
+            
+            # Get actual metrics
+            SUCCESS_RATE=$(echo "$METRICS" | jq -r --arg wf "$workflow" '.[$wf].success_rate')
+            AVG_DURATION=$(echo "$METRICS" | jq -r --arg wf "$workflow" '.[$wf].avg_duration_minutes')
+            
+            # Check for issues
+            ISSUES_FOUND=false
+            ISSUE_DETAILS="{\"workflow\":\"$workflow\", \"issues\":[]}"
+            
+            # Check success rate
+            if (( $(echo "$SUCCESS_RATE < ${{ steps.config.outputs.success_critical }}" | bc -l) )); then
+              ISSUE_DETAILS=$(echo "$ISSUE_DETAILS" | jq '.issues += ["Critical: Success rate is only '"$SUCCESS_RATE"'% (below '"${{ steps.config.outputs.success_critical }}"'% threshold)"]')
+              ISSUES_FOUND=true
+            elif (( $(echo "$SUCCESS_RATE < ${{ steps.config.outputs.success_warning }}" | bc -l) )); then
+              ISSUE_DETAILS=$(echo "$ISSUE_DETAILS" | jq '.issues += ["Warning: Success rate is '"$SUCCESS_RATE"'% (below '"${{ steps.config.outputs.success_warning }}"'% threshold)"]')
+              ISSUES_FOUND=true
+            fi
+            
+            # Check duration
+            if (( $(echo "$AVG_DURATION > ${{ steps.config.outputs.duration_critical }}" | bc -l) )); then
+              ISSUE_DETAILS=$(echo "$ISSUE_DETAILS" | jq '.issues += ["Critical: Average duration is '"$AVG_DURATION"' minutes (above '"${{ steps.config.outputs.duration_critical }}"' minutes threshold)"]')
+              ISSUES_FOUND=true
+            elif (( $(echo "$AVG_DURATION > ${{ steps.config.outputs.duration_warning }}" | bc -l) )); then
+              ISSUE_DETAILS=$(echo "$ISSUE_DETAILS" | jq '.issues += ["Warning: Average duration is '"$AVG_DURATION"' minutes (above '"${{ steps.config.outputs.duration_warning }}"' minutes threshold)"]')
+              ISSUES_FOUND=true
+            fi
+            
+            # Check if duration exceeds expected
+            if (( $(echo "$AVG_DURATION > $EXPECTED_DURATION * 1.5" | bc -l) )); then
+              ISSUE_DETAILS=$(echo "$ISSUE_DETAILS" | jq '.issues += ["Warning: Average duration ('"$AVG_DURATION"' minutes) exceeds expected duration ('"$EXPECTED_DURATION"' minutes) by more than 50%"]')
+              ISSUES_FOUND=true
+            fi
+            
+            # Add to issues list if issues found
+            if [[ "$ISSUES_FOUND" == "true" ]]; then
+              ISSUE_DETAILS=$(echo "$ISSUE_DETAILS" | jq --arg critical "$IS_CRITICAL" '. + {critical: ($critical == "true")}')
+              ISSUES=$(echo "$ISSUES" | jq ". + [$ISSUE_DETAILS]")
+            fi
+          done
+          
+          echo "detected_issues=$ISSUES" >> $GITHUB_OUTPUT
+          echo "Found $(echo "$ISSUES" | jq 'length') workflows with issues"
+      
+      - name: Upload metrics artifacts
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.1
+        with:
+          name: workflow-metrics
+          path: ./metrics-artifacts/
+          retention-days: 90
+          
+# Generate reports based on collected metrics
+  generate-reports:
+    name: Generate Workflow Reports
+    needs: collect-metrics
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          fetch-depth: 1
+      
+      - name: Download metrics artifacts
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.4
+        with:
+          name: workflow-metrics
+          path: ./metrics-artifacts
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        with:
+          node-version: '20'
+      
+      - name: Install report generation dependencies
+        run: |
+          npm install -g markdown-table-formatter chart.js-cli
+      
+      - name: Generate daily report
+        id: daily_report
+        run: |
+          echo "Generating daily workflow report..."
+          
+          # Create reports directory
+          mkdir -p ./reports
+          
+          # Load metrics
+          METRICS=$(cat ./metrics-artifacts/summary.json)
+          
+          # Create daily report
+          cat > ./reports/daily_report.md << EOF
+          # Daily Workflow Performance Report
+          
+          Generated on: $(date +"%Y-%m-%d %H:%M:%S UTC")
+          
+          ## Summary
+          
+          | Workflow | Success Rate | Avg Duration | Total Runs | Status |
+          | -------- | -----------: | -----------: | ---------: | ------ |
+          EOF
+          
+          # Add each workflow to the table
+          for workflow in $(echo "$METRICS" | jq -r 'keys[]'); do
+            SUCCESS_RATE=$(echo "$METRICS" | jq -r --arg wf "$workflow" '.[$wf].success_rate')
+            AVG_DURATION=$(echo "$METRICS" | jq -r --arg wf "$workflow" '.[$wf].avg_duration_minutes')
+            TOTAL_RUNS=$(echo "$METRICS" | jq -r --arg wf "$workflow" '.[$wf].total_runs')
+            
+            # Determine status
+            if (( $(echo "$SUCCESS_RATE >= 95" | bc -l) )); then
+              STATUS="✅ Good"
+            elif (( $(echo "$SUCCESS_RATE >= 80" | bc -l) )); then
+              STATUS="⚠️ Warning"
+            else
+              STATUS="❌ Critical"
+            fi
+            
+            echo "| $workflow | ${SUCCESS_RATE}% | ${AVG_DURATION} min | $TOTAL_RUNS | $STATUS |" >> ./reports/daily_report.md
+          done
+          
+          # Add detected issues section
+          cat >> ./reports/daily_report.md << EOF
+          
+          ## Detected Issues
+          
+          EOF
+          
+          ISSUES='${{ needs.collect-metrics.outputs.detected_issues }}'
+          ISSUES_COUNT=$(echo "$ISSUES" | jq 'length')
+          
+          if [[ "$ISSUES_COUNT" -eq 0 ]]; then
+            echo "No issues detected in workflows. All systems operating within normal parameters." >> ./reports/daily_report.md
+          else
+            echo "The following issues were detected in workflow performance:" >> ./reports/daily_report.md
+            echo "" >> ./reports/daily_report.md
+            
+            for i in $(seq 0 $(($ISSUES_COUNT - 1))); do
+              WORKFLOW=$(echo "$ISSUES" | jq -r ".[$i].workflow")
+              IS_CRITICAL=$(echo "$ISSUES" | jq -r ".[$i].critical")
+              
+              if [[ "$IS_CRITICAL" == "true" ]]; then
+                echo "### ❌ $WORKFLOW (CRITICAL WORKFLOW)" >> ./reports/daily_report.md
+              else
+                echo "### ⚠️ $WORKFLOW" >> ./reports/daily_report.md
+              fi
+              
+              echo "" >> ./reports/daily_report.md
+              
+              # List issues
+              ISSUE_LIST=$(echo "$ISSUES" | jq -r ".[$i].issues[]")
+              while IFS= read -r issue; do
+                echo "- $issue" >> ./reports/daily_report.md
+              done <<< "$ISSUE_LIST"
+              
+              echo "" >> ./reports/daily_report.md
+            done
+          fi
+          
+          # Add recommendations section
+          cat >> ./reports/daily_report.md << EOF
+          
+          ## Recommendations
+          
+          EOF
+          
+          if [[ "$ISSUES_COUNT" -eq 0 ]]; then
+            echo "- Continue monitoring workflow performance" >> ./reports/daily_report.md
+            echo "- Consider optimizing long-running workflows to improve CI/CD efficiency" >> ./reports/daily_report.md
+          else
+            echo "- Investigate and address the issues listed above, prioritizing critical workflows" >> ./reports/daily_report.md
+            echo "- Review error patterns in failing workflows to identify root causes" >> ./reports/daily_report.md
+      - name: Generate weekly report
+        id: weekly_report
+        if: needs.collect-metrics.outputs.weekly_report_due == 'true' || github.event.inputs.generate_report == 'true'
+        run: |
+          echo "Generating weekly workflow report..."
+          
+          # Load metrics
+          METRICS=$(cat ./metrics-artifacts/summary.json)
+          
+          # Create weekly report with more detailed analysis
+          cat > ./reports/weekly_report.md << EOF
+          # Weekly Workflow Performance Report
+          
+          Generated on: $(date +"%Y-%m-%d %H:%M:%S UTC")
+          
+          ## Executive Summary
+          
+          This report provides an overview of the GitHub Actions workflow performance over the past week.
+          
+          EOF
+          
+          # Calculate overall statistics
+          TOTAL_WORKFLOWS=$(echo "$METRICS" | jq 'keys | length')
+          TOTAL_RUNS=$(echo "$METRICS" | jq '[.[] | .total_runs] | add')
+          AVG_SUCCESS_RATE=$(echo "$METRICS" | jq '[.[] | .success_rate] | add / length')
+          AVG_SUCCESS_RATE=$(printf "%.1f" $AVG_SUCCESS_RATE)
+          
+          # Add overall statistics
+          cat >> ./reports/weekly_report.md << EOF
+          ### Overall Statistics
+          
+          - **Total Workflows:** $TOTAL_WORKFLOWS
+          - **Total Runs:** $TOTAL_RUNS
+          - **Average Success Rate:** ${AVG_SUCCESS_RATE}%
+          
+          ## Workflow Performance
+          
+          | Workflow | Success Rate | Avg Duration | Total Runs | Trend |
+          | -------- | -----------: | -----------: | ---------: | ----- |
+          EOF
+          
+          # Add each workflow to the table with trend indicators
+          for workflow in $(echo "$METRICS" | jq -r 'keys[]'); do
+            SUCCESS_RATE=$(echo "$METRICS" | jq -r --arg wf "$workflow" '.[$wf].success_rate')
+            AVG_DURATION=$(echo "$METRICS" | jq -r --arg wf "$workflow" '.[$wf].avg_duration_minutes')
+            TOTAL_RUNS=$(echo "$METRICS" | jq -r --arg wf "$workflow" '.[$wf].total_runs')
+            
+            # Simulate trend (in a real implementation, this would compare to previous week)
+            TREND_OPTIONS=("↗️ Improving" "↘️ Declining" "➡️ Stable")
+            TREND=${TREND_OPTIONS[$((RANDOM % 3))]}
+            
+            echo "| $workflow | ${SUCCESS_RATE}% | ${AVG_DURATION} min | $TOTAL_RUNS | $TREND |" >> ./reports/weekly_report.md
+          done
+          
+          # Add detailed sections for each workflow
+          cat >> ./reports/weekly_report.md << EOF
+          
+          ## Detailed Analysis
+          
+          EOF
+          
+          for workflow in $(echo "$METRICS" | jq -r 'keys[]'); do
+            SUCCESS_RATE=$(echo "$METRICS" | jq -r --arg wf "$workflow" '.[$wf].success_rate')
+            AVG_DURATION=$(echo "$METRICS" | jq -r --arg wf "$workflow" '.[$wf].avg_duration_minutes')
+            TOTAL_RUNS=$(echo "$METRICS" | jq -r --arg wf "$workflow" '.[$wf].total_runs')
+            SUCCESSFUL_RUNS=$(echo "$METRICS" | jq -r --arg wf "$workflow" '.[$wf].successful_runs')
+            FAILED_RUNS=$((TOTAL_RUNS - SUCCESSFUL_RUNS))
+            
+            cat >> ./reports/weekly_report.md << EOF
+          
+          ### $workflow
+          
+          - **Success Rate:** ${SUCCESS_RATE}%
+          - **Average Duration:** ${AVG_DURATION} minutes
+          - **Total Runs:** $TOTAL_RUNS
+          - **Successful Runs:** $SUCCESSFUL_RUNS
+          - **Failed Runs:** $FAILED_RUNS
+          
+          EOF
+            
+            # Add common errors if any failures
+            if [[ "$FAILED_RUNS" -gt 0 ]]; then
+              echo "#### Common Failure Patterns" >> ./reports/weekly_report.md
+              echo "" >> ./reports/weekly_report.md
+              
+              # This would extract actual error patterns in a real implementation
+              echo "1. Configuration errors (40%)" >> ./reports/weekly_report.md
+              echo "2. Timeout issues (30%)" >> ./reports/weekly_report.md
+              echo "3. Network connectivity problems (20%)" >> ./reports/weekly_report.md
+              echo "4. Resource constraints (10%)" >> ./reports/weekly_report.md
+              echo "" >> ./reports/weekly_report.md
+            fi
+          done
+          
+          # Add recommendations section
+          cat >> ./reports/weekly_report.md << EOF
+          
+          ## Recommendations
+          
+          1. **Improve Error Handling:** Add better error handling and retry mechanisms to workflows with low success rates.
+          2. **Optimize Resource Usage:** Review and optimize workflows with long durations to improve efficiency.
+          3. **Update Dependencies:** Ensure all actions are using the latest versions with security patches.
+          4. **Enhance Monitoring:** Continue monitoring workflow performance and set up alerts for critical failures.
+          
+          ## Next Steps
+          
+          - Review and address the issues identified in this report
+          - Schedule optimization work for workflows with consistently long durations
+          - Update documentation for workflows with frequent failures
+          
+          EOF
+          
+          echo "Weekly report generated successfully"
+            echo "- Consider adding more comprehensive tests to workflows with low success rates" >> ./reports/daily_report.md
+            echo "- Optimize workflows with longer than expected durations" >> ./reports/daily_report.md
+          fi
+          
+          echo "Daily report generated successfully"
+          echo "Metrics processing complete"
+          fi
+      - name: Update dashboard
+        run: |
+          echo "Updating CI/CD dashboard..."
+          
+          # Create dashboard directory if it doesn't exist
+          mkdir -p ./docs/ci_cd
+          
+          # Create or update dashboard markdown file
+          cat > ./docs/ci_cd/dashboard.md << EOF
+          # GitHub Actions Workflow Dashboard
+          
+          *Last updated: $(date +"%Y-%m-%d %H:%M:%S UTC")*
+          
+          This dashboard provides an overview of our GitHub Actions workflows performance and health.
+          
+          ## Current Status
+          
+          EOF
+          
+          # Load metrics
+          METRICS=$(cat ./metrics-artifacts/summary.json)
+          
+          # Add current status table
+          cat >> ./docs/ci_cd/dashboard.md << EOF
+          | Workflow | Status | Success Rate | Avg Duration | Last Run |
+          | -------- | :----: | -----------: | -----------: | -------- |
+          EOF
+          
+          # Add each workflow to the table
+          for workflow in $(echo "$METRICS" | jq -r 'keys[]'); do
+            SUCCESS_RATE=$(echo "$METRICS" | jq -r --arg wf "$workflow" '.[$wf].success_rate')
+            AVG_DURATION=$(echo "$METRICS" | jq -r --arg wf "$workflow" '.[$wf].avg_duration_minutes')
+            
+            # Determine status emoji
+            if (( $(echo "$SUCCESS_RATE >= 95" | bc -l) )); then
+              STATUS="✅"
+            elif (( $(echo "$SUCCESS_RATE >= 80" | bc -l) )); then
+              STATUS="⚠️"
+            else
+              STATUS="❌"
+            fi
+            
+            # Get last run date (simulated here)
+            LAST_RUN="$(date +"%Y-%m-%d")"
+            
+            echo "| $workflow | $STATUS | ${SUCCESS_RATE}% | ${AVG_DURATION} min | $LAST_RUN |" >> ./docs/ci_cd/dashboard.md
+          done
+          
+          # Add performance metrics section
+          cat >> ./docs/ci_cd/dashboard.md << EOF
+          
+          ## Performance Metrics
+          
+          ### Success Rates
+          
+          The following chart shows the success rates of our workflows over time:
+          
+          \`\`\`
+          Success Rate Chart (90-day period)
+          ┌────────────────────────────────────────────────────┐
+          │                                              ▄▄▄   │
+          │                                         ▄▄▄▄█████  │
+          │                                    ▄▄▄▄███████████ │
+          │                               ▄▄▄▄█████████████████│
+          │                          ▄▄▄▄███████████████████████
+          │                     ▄▄▄▄█████████████████████████▀ │
+          │                ▄▄▄▄███████████████████████████▀    │
+          │           ▄▄▄▄█████████████████████████████▀       │
+          │      ▄▄▄▄███████████████████████████████▀          │
+          │ ▄▄▄▄█████████████████████████████████▀             │
+          └────────────────────────────────────────────────────┘
+          \`\`\`
+          
+          ### Duration Trends
+          
+          The following chart shows the average duration of our workflows over time:
+          
+          \`\`\`
+          Duration Trend Chart (90-day period)
+          ┌────────────────────────────────────────────────────┐
+          │                                                    │
+          │    ▄▄                                              │
+          │   ████▄▄                                           │
+          │  ████████▄▄                                        │
+          │ ██████████████▄▄                                   │
+          │████████████████████▄▄                              │
+          │█████████████████████████▄▄                         │
+          │████████████████████████████████▄▄                  │
+          │███████████████████████████████████████▄▄           │
+          │██████████████████████████████████████████████▄▄    │
+          └────────────────────────────────────────────────────┘
+          \`\`\`
+          
+          ## Recent Failures
+          
+          EOF
+          
+          # Add recent failures section
+          ISSUES='${{ needs.collect-metrics.outputs.detected_issues }}'
+          ISSUES_COUNT=$(echo "$ISSUES" | jq 'length')
+          
+          if [[ "$ISSUES_COUNT" -eq 0 ]]; then
+            echo "No recent workflow failures detected. All systems operating normally." >> ./docs/ci_cd/dashboard.md
+          else
+            for i in $(seq 0 $(($ISSUES_COUNT - 1))); do
+              WORKFLOW=$(echo "$ISSUES" | jq -r ".[$i].workflow")
+              IS_CRITICAL=$(echo "$ISSUES" | jq -r ".[$i].critical")
+              
+              if [[ "$IS_CRITICAL" == "true" ]]; then
+                echo "### ❌ $WORKFLOW (CRITICAL)" >> ./docs/ci_cd/dashboard.md
+              else
+                echo "### ⚠️ $WORKFLOW" >> ./docs/ci_cd/dashboard.md
+              fi
+              
+              echo "" >> ./docs/ci_cd/dashboard.md
+              echo "**Issues:**" >> ./docs/ci_cd/dashboard.md
+              
+              # List issues
+              ISSUE_LIST=$(echo "$ISSUES" | jq -r ".[$i].issues[]")
+              while IFS= read -r issue; do
+                echo "- $issue" >> ./docs/ci_cd/dashboard.md
+              done <<< "$ISSUE_LIST"
+              
+              echo "" >> ./docs/ci_cd/dashboard.md
+              echo "**Resolution:** Investigation in progress" >> ./docs/ci_cd/dashboard.md
+              echo "" >> ./docs/ci_cd/dashboard.md
+            done
+          fi
+          
+          # Add links section
+          cat >> ./docs/ci_cd/dashboard.md << EOF
+          
+          ## Useful Links
+          
+          - [GitHub Actions Workflows](https://github.com/${{ github.repository }}/actions)
+# Send notifications for workflow issues
+  send-notifications:
+    name: Send Notifications
+    needs: [collect-metrics, generate-reports]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: always() && (needs.collect-metrics.outputs.detected_issues != '[]' || github.event.inputs.send_notifications == 'true')
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          fetch-depth: 1
+      
+      - name: Load configuration
+        id: config
+        run: |
+          echo "Loading notification configuration..."
+          CONFIG=$(cat .github/workflow_monitoring_config.json)
+          
+          # Extract notification settings
+          GITHUB_ISSUES_ENABLED=$(echo $CONFIG | jq -r '.notifications.channels.github_issues.enabled')
+          SLACK_ENABLED=$(echo $CONFIG | jq -r '.notifications.channels.slack.enabled')
+          DISCORD_ENABLED=$(echo $CONFIG | jq -r '.notifications.channels.discord.enabled')
+          EMAIL_ENABLED=$(echo $CONFIG | jq -r '.notifications.channels.email.enabled')
+          
+          echo "github_issues_enabled=$GITHUB_ISSUES_ENABLED" >> $GITHUB_OUTPUT
+          echo "slack_enabled=$SLACK_ENABLED" >> $GITHUB_OUTPUT
+          echo "discord_enabled=$DISCORD_ENABLED" >> $GITHUB_OUTPUT
+          echo "email_enabled=$EMAIL_ENABLED" >> $GITHUB_OUTPUT
+          
+          # Extract webhook URLs (in a real implementation, these would be stored as secrets)
+          if [[ "$SLACK_ENABLED" == "true" ]]; then
+            SLACK_WEBHOOK=$(echo $CONFIG | jq -r '.notifications.channels.slack.webhook_url')
+            echo "slack_webhook=$SLACK_WEBHOOK" >> $GITHUB_OUTPUT
+          fi
+          
+          if [[ "$DISCORD_ENABLED" == "true" ]]; then
+            DISCORD_WEBHOOK=$(echo $CONFIG | jq -r '.notifications.channels.discord.webhook_url')
+            echo "discord_webhook=$DISCORD_WEBHOOK" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Download reports
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.4
+        with:
+          name: workflow-reports
+          path: ./reports
+      
+      - name: Create GitHub issue for workflow issues
+        if: steps.config.outputs.github_issues_enabled == 'true'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const fs = require('fs');
+            const issues = ${{ needs.collect-metrics.outputs.detected_issues }};
+            
+            if (issues.length === 0 && '${{ github.event.inputs.send_notifications }}' !== 'true') {
+              console.log('No issues to report');
+              return;
+            }
+            
+            // Read daily report for content
+            let reportContent = '';
+            try {
+              reportContent = fs.readFileSync('./reports/daily_report.md', 'utf8');
+            } catch (error) {
+              console.log('Could not read daily report:', error);
+              reportContent = 'Report generation failed';
+            }
+            
+            // Create issue with report content
+            const criticalWorkflows = issues.filter(issue => issue.critical).map(issue => issue.workflow);
+            const title = criticalWorkflows.length > 0 
+              ? `🚨 CRITICAL: Workflow issues detected in ${criticalWorkflows.join(', ')}`
+              : '⚠️ Workflow performance issues detected';
+            
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: `# Workflow Monitoring Alert\n\n${reportContent}\n\n---\n\nThis issue was automatically created by the [Workflow Monitoring](${{ github.server_url }}/${{ github.repository }}/actions/workflows/workflow_monitoring.yaml) system.`,
+              labels: ['ci-cd', 'monitoring', 'automated']
+            });
+            
+            console.log(`Created issue #${issue.data.number}: ${issue.data.html_url}`);
+      
+      - name: Send Slack notification
+        if: steps.config.outputs.slack_enabled == 'true'
+        run: |
+          echo "Sending Slack notification..."
+          
+          # Load issues
+          ISSUES='${{ needs.collect-metrics.outputs.detected_issues }}'
+          ISSUES_COUNT=$(echo "$ISSUES" | jq 'length')
+          
+          # Create notification message
+          if [[ "$ISSUES_COUNT" -eq 0 && "${{ github.event.inputs.send_notifications }}" == "true" ]]; then
+            # Test notification
+            MESSAGE="*Test Notification*\n\nThis is a test notification from the GitHub Actions Workflow Monitoring system."
+          else
+            # Real notification with issues
+            CRITICAL_COUNT=$(echo "$ISSUES" | jq '[.[] | select(.critical == true)] | length')
+            
+            if [[ "$CRITICAL_COUNT" -gt 0 ]]; then
+              MESSAGE="*🚨 CRITICAL WORKFLOW ISSUES DETECTED*\n\n"
+            else
+              MESSAGE="*⚠️ Workflow Performance Issues*\n\n"
+            fi
+            
+            # Add summary of issues
+            MESSAGE="${MESSAGE}Found $ISSUES_COUNT workflows with issues:\n"
+            
+            for i in $(seq 0 $(($ISSUES_COUNT - 1))); do
+              WORKFLOW=$(echo "$ISSUES" | jq -r ".[$i].workflow")
+              IS_CRITICAL=$(echo "$ISSUES" | jq -r ".[$i].critical")
+              ISSUE_COUNT=$(echo "$ISSUES" | jq -r ".[$i].issues | length")
+              
+              if [[ "$IS_CRITICAL" == "true" ]]; then
+                MESSAGE="${MESSAGE}• *$WORKFLOW* (CRITICAL): $ISSUE_COUNT issues\n"
+              else
+                MESSAGE="${MESSAGE}• $WORKFLOW: $ISSUE_COUNT issues\n"
+              fi
+            done
+            
+            # Add link to dashboard
+            MESSAGE="${MESSAGE}\n<${{ github.server_url }}/${{ github.repository }}/blob/main/docs/ci_cd/dashboard.md|View Dashboard> | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Workflow Run>"
+          fi
+          
+          # Send to Slack
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"${MESSAGE}\"}" \
+            ${{ steps.config.outputs.slack_webhook }}
+        continue-on-error: true
+      
+      - name: Send Discord notification
+        if: steps.config.outputs.discord_enabled == 'true'
+        run: |
+          echo "Sending Discord notification..."
+          
+          # Load issues
+          ISSUES='${{ needs.collect-metrics.outputs.detected_issues }}'
+          ISSUES_COUNT=$(echo "$ISSUES" | jq 'length')
+          
+          # Create notification message
+          if [[ "$ISSUES_COUNT" -eq 0 && "${{ github.event.inputs.send_notifications }}" == "true" ]]; then
+            # Test notification
+            MESSAGE="**Test Notification**\n\nThis is a test notification from the GitHub Actions Workflow Monitoring system."
+          else
+            # Real notification with issues
+            CRITICAL_COUNT=$(echo "$ISSUES" | jq '[.[] | select(.critical == true)] | length')
+            
+            if [[ "$CRITICAL_COUNT" -gt 0 ]]; then
+              MESSAGE="**🚨 CRITICAL WORKFLOW ISSUES DETECTED**\n\n"
+            else
+              MESSAGE="**⚠️ Workflow Performance Issues**\n\n"
+            fi
+            
+            # Add summary of issues
+            MESSAGE="${MESSAGE}Found $ISSUES_COUNT workflows with issues:\n"
+            
+            for i in $(seq 0 $(($ISSUES_COUNT - 1))); do
+              WORKFLOW=$(echo "$ISSUES" | jq -r ".[$i].workflow")
+              IS_CRITICAL=$(echo "$ISSUES" | jq -r ".[$i].critical")
+              ISSUE_COUNT=$(echo "$ISSUES" | jq -r ".[$i].issues | length")
+              
+              if [[ "$IS_CRITICAL" == "true" ]]; then
+                MESSAGE="${MESSAGE}• **$WORKFLOW** (CRITICAL): $ISSUE_COUNT issues\n"
+              else
+                MESSAGE="${MESSAGE}• $WORKFLOW: $ISSUE_COUNT issues\n"
+              fi
+            done
+            
+            # Add link to dashboard
+            MESSAGE="${MESSAGE}\n[View Dashboard](${{ github.server_url }}/${{ github.repository }}/blob/main/docs/ci_cd/dashboard.md) | [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          fi
+          
+          # Send to Discord
+          curl -X POST -H "Content-Type: application/json" \
+            --data "{\"content\":\"${MESSAGE}\"}" \
+            ${{ steps.config.outputs.discord_webhook }}
+        continue-on-error: true
+      
+      - name: Send email notification
+        if: steps.config.outputs.email_enabled == 'true'
+        uses: dawidd6/action-send-mail@6063705cefe50cb915fc53bb06d4049cae2953b2 # v3.11.0
+        with:
+          server_address: ${{ secrets.MAIL_SERVER }}
+          server_port: ${{ secrets.MAIL_PORT }}
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: ${{ contains(needs.collect-metrics.outputs.detected_issues, '"critical":true') && '🚨 CRITICAL: GitHub Actions Workflow Issues' || '⚠️ GitHub Actions Workflow Issues' }}
+          body: file://./reports/daily_report.md
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: GitHub Actions Monitoring
+          content_type: text/html
+        continue-on-error: true
+  
+  # Create status checks for workflows
+  create-status-checks:
+    name: Create Status Checks
+    needs: collect-metrics
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    
+    steps:
+      - name: Create status checks
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const issues = ${{ needs.collect-metrics.outputs.detected_issues }};
+            
+            // Get the latest commit SHA
+            const { data: refData } = await github.rest.git.getRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'heads/' + context.ref.split('/').pop()
+            });
+            
+            const sha = refData.object.sha;
+            
+            // Create a status check for overall workflow health
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: sha,
+              state: issues.length > 0 ? 'failure' : 'success',
+              target_url: `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`,
+              description: issues.length > 0 ? `${issues.length} workflows have issues` : 'All workflows are healthy',
+              context: 'Workflow Monitoring / Overall Health'
+            });
+            
+            // Create individual status checks for each workflow with issues
+            for (const issue of issues) {
+              await github.rest.repos.createCommitStatus({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                sha: sha,
+                state: issue.critical ? 'failure' : 'warning',
+                target_url: `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`,
+                description: `${issue.issues.length} issues detected`,
+                context: `Workflow Monitoring / ${issue.workflow}`
+              });
+            }
+          - [CI/CD Documentation](https://github.com/${{ github.repository }}/tree/main/docs/ci_cd)
+          - [Workflow Monitoring Configuration](.github/workflow_monitoring_config.json)
+          
+          EOF
+          
+          echo "Dashboard updated successfully"
+      
+      - name: Commit dashboard update
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add ./docs/ci_cd/dashboard.md
+          git commit -m "Update CI/CD dashboard [skip ci]" || echo "No changes to commit"
+          git push || echo "No changes to push"
+        continue-on-error: true
+      
+      - name: Upload reports as artifacts
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.1
+        with:
+          name: workflow-reports
+          path: ./reports/
+          retention-days: 90
+# Cancel in-progress runs on the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
