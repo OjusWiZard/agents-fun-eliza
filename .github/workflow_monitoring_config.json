@@ -1,0 +1,105 @@
+{
+  "notifications": {
+    "thresholds": {
+      "workflow_duration_warning_minutes": 30,
+      "workflow_duration_critical_minutes": 60,
+      "success_rate_warning_percent": 80,
+      "success_rate_critical_percent": 60,
+      "resource_usage_warning_percent": 80,
+      "resource_usage_critical_percent": 90
+    },
+    "channels": {
+      "github_issues": {
+        "enabled": true,
+        "labels": ["ci-cd", "monitoring", "automated"]
+      },
+      "slack": {
+        "enabled": true,
+        "webhook_url": "SLACK_WEBHOOK_URL",
+        "channel": "#ci-notifications",
+        "notify_on": {
+          "failure": true,
+          "long_running": true,
+          "success": false,
+          "weekly_report": true
+        }
+      },
+      "discord": {
+        "enabled": false,
+        "webhook_url": "DISCORD_WEBHOOK_URL",
+        "notify_on": {
+          "failure": true,
+          "long_running": true,
+          "success": false,
+          "weekly_report": true
+        }
+      },
+      "email": {
+        "enabled": true,
+        "recipients": [
+          "devops@example.com",
+          "engineering-leads@example.com"
+        ],
+        "notify_on": {
+          "failure": true,
+          "long_running": false,
+          "success": false,
+          "weekly_report": true
+        }
+      },
+      "status_checks": {
+        "enabled": true
+      }
+    }
+  },
+  "monitoring": {
+    "schedule": {
+      "daily_check": "0 0 * * *",
+      "weekly_report": "0 9 * * MON"
+    },
+    "retention": {
+      "days": 90
+    },
+    "metrics": {
+      "collect": [
+        "duration",
+        "success_rate",
+        "resource_usage",
+        "error_frequency",
+        "flakiness"
+      ]
+    }
+  },
+  "reports": {
+    "formats": {
+      "weekly": {
+        "include_charts": true,
+        "include_trends": true,
+        "include_recommendations": true
+      },
+      "failure": {
+        "include_logs": true,
+        "include_diff": true,
+        "include_previous_failures": true
+      }
+    }
+  },
+  "workflows": {
+    "binary_builder": {
+      "expected_duration_minutes": 45,
+      "critical": true
+    },
+    "release_creator": {
+      "expected_duration_minutes": 10,
+      "critical": true
+    },
+    "workflow-validation": {
+      "expected_duration_minutes": 5,
+      "critical": false
+    },
+    "binary_testing": {
+      "expected_duration_minutes": 15,
+      "critical": true
+    }
+  }
+}
