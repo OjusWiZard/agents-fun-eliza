@@ -30,8 +30,8 @@ importers:
         specifier: 0.12.7
         version: 0.12.7
       plugin-memeooorr:
-        specifier: 0.2.2
-        version: 0.2.2(@google-cloud/vertexai@1.9.3)(@langchain/core@0.3.42(openai@4.73.0(zod@3.23.8)))(axios@1.8.3)(react@19.0.0)(sswr@2.2.0(svelte@5.23.1))(svelte@5.23.1)(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)(ws@8.18.0)(zod@3.23.8)
+        specifier: 0.2.3
+        version: 0.2.3(@google-cloud/vertexai@1.9.3)(@langchain/core@0.3.42(openai@4.73.0(zod@3.23.8)))(axios@1.8.3)(react@19.0.0)(sswr@2.2.0(svelte@5.23.1))(svelte@5.23.1)(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)(ws@8.18.0)(zod@3.23.8)
       sharp:
         specifier: 0.33.5
         version: 0.33.5
@@ -2745,8 +2745,8 @@ packages:
     resolution: {integrity: sha512-HRDzbaKjC+AOWVXxAU/x54COGeIv9eb+6CkDSQoNTt4XyWoIJvuPsXizxu/Fr23EiekbtZwmh1IcIG/l/a10GQ==}
     engines: {node: '>=8'}
 
-  plugin-memeooorr@0.2.2:
-    resolution: {integrity: sha512-loFLJc64wgshxWROr1vXIcF+9zimTRP8AJicZa24u+ytfCwRdYu1EFYVs9roRKf3ccM1x25cpiD+dd+Ues17Mw==}
+  plugin-memeooorr@0.2.3:
+    resolution: {integrity: sha512-nvw163itRTgNjgywOBVih0lfV4dutaereX4fF0p7N/JL96K40v8Fe/YE5j477QiYpV2Q+RkyrIciSy6e2726zA==}
     peerDependencies:
       whatwg-url: 7.1.0
       zod: 3.23.8
@@ -6603,7 +6603,7 @@ snapshots:
     dependencies:
       find-up: 4.1.0
 
-  plugin-memeooorr@0.2.2(@google-cloud/vertexai@1.9.3)(@langchain/core@0.3.42(openai@4.73.0(zod@3.23.8)))(axios@1.8.3)(react@19.0.0)(sswr@2.2.0(svelte@5.23.1))(svelte@5.23.1)(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)(ws@8.18.0)(zod@3.23.8):
+  plugin-memeooorr@0.2.3(@google-cloud/vertexai@1.9.3)(@langchain/core@0.3.42(openai@4.73.0(zod@3.23.8)))(axios@1.8.3)(react@19.0.0)(sswr@2.2.0(svelte@5.23.1))(svelte@5.23.1)(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)(ws@8.18.0)(zod@3.23.8):
     dependencies:
       '@elizaos/core': 0.1.7(@google-cloud/vertexai@1.9.3)(@langchain/core@0.3.42(openai@4.73.0(zod@3.23.8)))(axios@1.8.3)(react@19.0.0)(sswr@2.2.0(svelte@5.23.1))(svelte@5.23.1)(vue@3.5.13(typescript@5.7.3))(ws@8.18.0)
       '@safe-global/protocol-kit': 5.2.2(typescript@5.7.3)(zod@3.23.8)
