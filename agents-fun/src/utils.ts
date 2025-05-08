@@ -4,11 +4,10 @@ import net from "net";
 import * as fs from "fs";
 import * as path from "path";
 
-import { ROOMS } from "./config/index.ts";
+import { ROOMS, AGENT_PATHS } from "./config/index.ts";
 import type { RoomKey } from "./types.ts";
 
-const storePath = (process.env.STORE_PATH ?? process.env.CONNECTION_CONFIGS_CONFIG_STORE_PATH) as string;
-const logPath = path.join(storePath, "logs.txt");
+const logPath = path.join(AGENT_PATHS.AGENT_WORKING_PATH, "logs.txt");
 
 // Patch elizaLogger: every log method appends to logs.txt
 Object.entries({ log: "INFO", info: "INFO", warn: "WARN", error: "ERROR", success: "SUCCESS", verbose: "VERBOSE" })
