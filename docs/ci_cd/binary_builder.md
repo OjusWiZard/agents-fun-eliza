@@ -51,7 +51,7 @@ The workflow defines several global environment variables:
 
 | Variable | Value | Description |
 |----------|-------|-------------|
-| `BINARY_NAME` | agentsFunEliza | The name of the output binary |
+| `BINARY_NAME` | agent_runner | The name of the output binary |
 | `BUN_VERSION` | 1.2.4 | The version of Bun to use for compilation |
 | `NODE_VERSION` | 23.3.0 | The version of Node.js to use |
 | `PNPM_VERSION` | 9 | The version of pnpm to use |

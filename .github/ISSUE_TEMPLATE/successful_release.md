@@ -47,8 +47,8 @@ All binaries have been automatically tested for:
 
 1. Download the appropriate binary for your platform from the links above
 2. Extract the binary to your desired location
-3. Make the binary executable (Linux/macOS only): `chmod +x agentsFunEliza_*`
-4. Run the binary: `./agentsFunEliza_*` (or double-click on Windows)
+3. Make the binary executable (Linux/macOS only): `chmod +x agent_runner_*`
+4. Run the binary: `./agent_runner_*` (or double-click on Windows)
 
 ## Known Issues
 
