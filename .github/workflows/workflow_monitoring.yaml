@@ -489,11 +489,10 @@ jobs:
             
             # Add common errors if any failures
             if [[ "$FAILED_RUNS" -gt 0 ]]; then
-              echo "#### Common Failure Patterns" >> ./reports/weekly_report.md
-              echo "" >> ./reports/weekly_report.md
-              
               # This would extract actual error patterns in a real implementation
-              { echo "1. Configuration errors (40%)";
+              { echo "#### Common Failure Patterns";
+                echo "";
+                echo "1. Configuration errors (40%)";
                 echo "2. Timeout issues (30%)";
                 echo "3. Network connectivity problems (20%)";
                 echo "4. Resource constraints (10%)";
