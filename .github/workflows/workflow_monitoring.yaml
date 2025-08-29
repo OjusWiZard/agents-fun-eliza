@@ -374,7 +374,7 @@ jobs:
           else
             { echo "The following issues were detected in workflow performance:"; echo ""; } >> ./reports/daily_report.md
             
-            for i in $(seq 0 $(($ISSUES_COUNT - 1))); do
+            for i in $(seq 0 $((ISSUES_COUNT - 1))); do
               WORKFLOW=$(echo "$ISSUES" | jq -r ".[$i].workflow")
               IS_CRITICAL=$(echo "$ISSUES" | jq -r ".[$i].critical")
               
@@ -432,7 +432,7 @@ jobs:
           TOTAL_WORKFLOWS=$(echo "$METRICS" | jq 'keys | length')
           TOTAL_RUNS=$(echo "$METRICS" | jq '[.[] | .total_runs] | add')
           AVG_SUCCESS_RATE=$(echo "$METRICS" | jq '[.[] | .success_rate] | add / length')
-          AVG_SUCCESS_RATE=$(printf "%.1f" $AVG_SUCCESS_RATE)
+          AVG_SUCCESS_RATE=$(printf "%.1f" "$AVG_SUCCESS_RATE")
           
           # Add overall statistics
           cat >> ./reports/weekly_report.md << EOF
@@ -625,7 +625,7 @@ jobs:
           if [[ "$ISSUES_COUNT" -eq 0 ]]; then
             echo "No recent workflow failures detected. All systems operating normally." >> ./docs/ci_cd/dashboard.md
           else
-            for i in $(seq 0 $(($ISSUES_COUNT - 1))); do
+            for i in $(seq 0 $((ISSUES_COUNT - 1))); do
               WORKFLOW=$(echo "$ISSUES" | jq -r ".[$i].workflow")
               IS_CRITICAL=$(echo "$ISSUES" | jq -r ".[$i].critical")
               
@@ -777,7 +777,7 @@ jobs:
             # Add summary of issues
             MESSAGE="${MESSAGE}Found $ISSUES_COUNT workflows with issues:\n"
             
-            for i in $(seq 0 $(($ISSUES_COUNT - 1))); do
+            for i in $(seq 0 $((ISSUES_COUNT - 1))); do
               WORKFLOW=$(echo "$ISSUES" | jq -r ".[$i].workflow")
               IS_CRITICAL=$(echo "$ISSUES" | jq -r ".[$i].critical")
               ISSUE_COUNT=$(echo "$ISSUES" | jq -r ".[$i].issues | length")
