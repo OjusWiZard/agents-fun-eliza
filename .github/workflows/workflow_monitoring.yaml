@@ -103,21 +103,21 @@ jobs:
           SINCE_DATE=$(date -d "${{ steps.config.outputs.retention_days }} days ago" +%Y-%m-%dT%H:%M:%SZ)
           
           # Fetch data for each workflow
-          for workflow in $WORKFLOWS; do
+          while IFS= read -r workflow; do
             echo "Fetching data for workflow: $workflow"
             
             # Get workflow ID
             WORKFLOW_ID=$(curl -s \
               -H "Authorization: token ${{ github.token }}" \
               -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/$workflow.yaml" | jq -r '.id')
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/${workflow}.yaml" | jq -r '.id')
             
             if [[ -z "$WORKFLOW_ID" || "$WORKFLOW_ID" == "null" ]]; then
               # Try with .yml extension
               WORKFLOW_ID=$(curl -s \
                 -H "Authorization: token ${{ github.token }}" \
                 -H "Accept: application/vnd.github.v3+json" \
-                "https://api.github.com/repos/${{ github.repository }}/actions/workflows/$workflow.yml" | jq -r '.id')
+                "https://api.github.com/repos/${{ github.repository }}/actions/workflows/${workflow}.yml" | jq -r '.id')
             fi
             
             if [[ -z "$WORKFLOW_ID" || "$WORKFLOW_ID" == "null" ]]; then
@@ -129,10 +129,10 @@ jobs:
             curl -s \
               -H "Authorization: token ${{ github.token }}" \
               -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/$WORKFLOW_ID/runs?per_page=100&created=>$SINCE_DATE" > ./workflow-metrics/$workflow.json
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/$WORKFLOW_ID/runs?per_page=100&created=>$SINCE_DATE" > "./workflow-metrics/${workflow}.json"
             
-            echo "Fetched $(jq '.total_count' ./workflow-metrics/$workflow.json) runs for $workflow"
-          done
+            echo "Fetched $(jq '.total_count' "./workflow-metrics/${workflow}.json") runs for $workflow"
+          done <<< "$WORKFLOWS"
       
       - name: Process metrics
         id: process_metrics
@@ -493,11 +493,11 @@ jobs:
               echo "" >> ./reports/weekly_report.md
               
               # This would extract actual error patterns in a real implementation
-              echo "1. Configuration errors (40%)" >> ./reports/weekly_report.md
-              echo "2. Timeout issues (30%)" >> ./reports/weekly_report.md
-              echo "3. Network connectivity problems (20%)" >> ./reports/weekly_report.md
-              echo "4. Resource constraints (10%)" >> ./reports/weekly_report.md
-              echo "" >> ./reports/weekly_report.md
+              { echo "1. Configuration errors (40%)";
+                echo "2. Timeout issues (30%)";
+                echo "3. Network connectivity problems (20%)";
+                echo "4. Resource constraints (10%)";
+                echo ""; } >> ./reports/weekly_report.md
             fi
           done
           
@@ -635,8 +635,7 @@ jobs:
                 echo "### ⚠️ $WORKFLOW" >> ./docs/ci_cd/dashboard.md
               fi
               
-              echo "" >> ./docs/ci_cd/dashboard.md
-              echo "**Issues:**" >> ./docs/ci_cd/dashboard.md
+              { echo ""; echo "**Issues:**"; } >> ./docs/ci_cd/dashboard.md
               
               # List issues
               ISSUE_LIST=$(echo "$ISSUES" | jq -r ".[$i].issues[]")
@@ -644,9 +643,9 @@ jobs:
                 echo "- $issue" >> ./docs/ci_cd/dashboard.md
               done <<< "$ISSUE_LIST"
               
-              echo "" >> ./docs/ci_cd/dashboard.md
-              echo "**Resolution:** Investigation in progress" >> ./docs/ci_cd/dashboard.md
-              echo "" >> ./docs/ci_cd/dashboard.md
+              { echo "";
+                echo "**Resolution:** Investigation in progress";
+                echo ""; } >> ./docs/ci_cd/dashboard.md
             done
           fi
           
@@ -825,7 +824,7 @@ jobs:
             # Add summary of issues
             MESSAGE="${MESSAGE}Found $ISSUES_COUNT workflows with issues:\n"
             
-            for i in $(seq 0 $(($ISSUES_COUNT - 1))); do
+            for i in $(seq 0 $((ISSUES_COUNT - 1))); do
               WORKFLOW=$(echo "$ISSUES" | jq -r ".[$i].workflow")
               IS_CRITICAL=$(echo "$ISSUES" | jq -r ".[$i].critical")
               ISSUE_COUNT=$(echo "$ISSUES" | jq -r ".[$i].issues | length")
