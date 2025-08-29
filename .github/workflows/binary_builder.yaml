@@ -17,7 +17,7 @@ concurrency:
 
 # Define global environment variables
 env:
-  BINARY_NAME: agentsFunEliza
+  BINARY_NAME: agent_runner
   BUN_VERSION: 1.2.4
   NODE_VERSION: 23.3.0
   PNPM_VERSION: 9
@@ -69,7 +69,7 @@ jobs:
         run: |
           VERSION=$(jq -r '.version' agents-fun/package.json)
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
-          echo "ARTIFACT_NAME=${BINARY_NAME}_${{ matrix.os_name }}_${{ matrix.arch }}_${VERSION}" >> $GITHUB_ENV
+          echo "ARTIFACT_NAME=${BINARY_NAME}_${{ matrix.os_name }}_${{ matrix.arch }}" >> $GITHUB_ENV
           echo "📦 Building version: ${VERSION} for ${{ matrix.os_name }}/${{ matrix.arch }}"
       
       # Setup and cache pnpm

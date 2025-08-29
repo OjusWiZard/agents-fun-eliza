@@ -52,7 +52,7 @@ The workflow defines several global environment variables:
 
 | Variable | Value | Description |
 |----------|-------|-------------|
-| `BINARY_NAME` | agentsFunEliza | The name of the binary to test |
+| `BINARY_NAME` | agent_runner | The name of the binary to test |
 | `TEST_TIMEOUT` | 60 | Timeout for individual tests in seconds |
 
 These variables are used throughout the workflow to ensure consistent testing.
