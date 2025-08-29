@@ -62,46 +62,46 @@ jobs:
           
           # Create a report file
           REPORT_FILE="unpinned_actions_report.md"
-          echo "# Unpinned Actions Report" > $REPORT_FILE
-          echo "" >> $REPORT_FILE
+          echo "# Unpinned Actions Report" > "$REPORT_FILE"
+          echo "" >> "$REPORT_FILE"
           
           for file in $WORKFLOW_FILES; do
-            echo "Checking $file" >> $REPORT_FILE
-            echo "```" >> $REPORT_FILE
+            echo "Checking $file" >> "$REPORT_FILE"
+            echo "```" >> "$REPORT_FILE"
             
             # Find lines with 'uses:' but without a SHA pin
             UNPINNED=$(grep -n "uses:" "$file" | grep -v "#" | grep -v "@[a-f0-9]\{40\}")
             
             if [ -n "$UNPINNED" ]; then
-              echo "$UNPINNED" >> $REPORT_FILE
+              echo "$UNPINNED" >> "$REPORT_FILE"
               UNPINNED_COUNT=$((UNPINNED_COUNT + $(echo "$UNPINNED" | wc -l)))
             else
-              echo "No unpinned actions found." >> $REPORT_FILE
+              echo "No unpinned actions found." >> "$REPORT_FILE"
             fi
             
             # Count total actions
             TOTAL_IN_FILE=$(grep -c "uses:" "$file" || echo 0)
             TOTAL_ACTIONS=$((TOTAL_ACTIONS + TOTAL_IN_FILE))
             
-            echo "```" >> $REPORT_FILE
-            echo "" >> $REPORT_FILE
+            echo "```" >> "$REPORT_FILE"
+            echo "" >> "$REPORT_FILE"
           done
           
           # Summary
-          echo "## Summary" >> $REPORT_FILE
-          echo "" >> $REPORT_FILE
-          echo "- Total actions: $TOTAL_ACTIONS" >> $REPORT_FILE
-          echo "- Unpinned actions: $UNPINNED_COUNT" >> $REPORT_FILE
+          echo "## Summary" >> "$REPORT_FILE"
+          echo "" >> "$REPORT_FILE"
+          echo "- Total actions: $TOTAL_ACTIONS" >> "$REPORT_FILE"
+          echo "- Unpinned actions: $UNPINNED_COUNT" >> "$REPORT_FILE"
           
           if [ $UNPINNED_COUNT -gt 0 ]; then
             echo "::warning::Found $UNPINNED_COUNT unpinned actions out of $TOTAL_ACTIONS total actions"
-            echo "unpinned_found=true" >> $GITHUB_OUTPUT
+            echo "unpinned_found=true" >> "$GITHUB_OUTPUT"
           else
             echo "::notice::All actions are properly pinned with SHA hashes! 🎉"
-            echo "unpinned_found=false" >> $GITHUB_OUTPUT
+            echo "unpinned_found=false" >> "$GITHUB_OUTPUT"
           fi
           
-          cat $REPORT_FILE
+          cat "$REPORT_FILE"
       
       - name: Comment on PR
         if: github.event_name == 'pull_request' && steps.check-pins.outputs.unpinned_found == 'true'
@@ -143,38 +143,38 @@ jobs:
           
           # Create a report file
           REPORT_FILE="permissions_report.md"
-          echo "# Workflow Permissions Report" > $REPORT_FILE
-          echo "" >> $REPORT_FILE
+          echo "# Workflow Permissions Report" > "$REPORT_FILE"
+          echo "" >> "$REPORT_FILE"
           
           for file in $WORKFLOW_FILES; do
-            echo "Checking $file" >> $REPORT_FILE
+            echo "Checking $file" >> "$REPORT_FILE"
             
             # Check if the file has permissions defined
             if ! grep -q "permissions:" "$file"; then
-              echo "❌ No permissions defined" >> $REPORT_FILE
+              echo "❌ No permissions defined" >> "$REPORT_FILE"
               MISSING_PERMS_COUNT=$((MISSING_PERMS_COUNT + 1))
             else
-              echo "✅ Permissions defined" >> $REPORT_FILE
+              echo "✅ Permissions defined" >> "$REPORT_FILE"
             fi
             
-            echo "" >> $REPORT_FILE
+            echo "" >> "$REPORT_FILE"
           done
           
           # Summary
-          echo "## Summary" >> $REPORT_FILE
-          echo "" >> $REPORT_FILE
-          echo "- Total workflow files: $(echo "$WORKFLOW_FILES" | wc -l)" >> $REPORT_FILE
-          echo "- Files missing permissions: $MISSING_PERMS_COUNT" >> $REPORT_FILE
+          echo "## Summary" >> "$REPORT_FILE"
+          echo "" >> "$REPORT_FILE"
+          echo "- Total workflow files: $(echo "$WORKFLOW_FILES" | wc -l)" >> "$REPORT_FILE"
+          echo "- Files missing permissions: $MISSING_PERMS_COUNT" >> "$REPORT_FILE"
           
           if [ $MISSING_PERMS_COUNT -gt 0 ]; then
             echo "::warning::Found $MISSING_PERMS_COUNT workflow files without explicit permissions"
-            echo "missing_perms=true" >> $GITHUB_OUTPUT
+            echo "missing_perms=true" >> "$GITHUB_OUTPUT"
           else
             echo "::notice::All workflow files have explicit permissions defined! 🎉"
-            echo "missing_perms=false" >> $GITHUB_OUTPUT
+            echo "missing_perms=false" >> "$GITHUB_OUTPUT"
           fi
           
-          cat $REPORT_FILE
+          cat "$REPORT_FILE"
       
       - name: Comment on PR
         if: github.event_name == 'pull_request' && steps.check-permissions.outputs.missing_perms == 'true'
@@ -217,12 +217,12 @@ jobs:
           
           # Create a report file
           REPORT_FILE="timeouts_report.md"
-          echo "# Workflow Timeout Limits Report" > $REPORT_FILE
-          echo "" >> $REPORT_FILE
+          echo "# Workflow Timeout Limits Report" > "$REPORT_FILE"
+          echo "" >> "$REPORT_FILE"
           
           for file in $WORKFLOW_FILES; do
-            echo "Checking $file" >> $REPORT_FILE
-            echo "```" >> $REPORT_FILE
+            echo "Checking $file" >> "$REPORT_FILE"
+            echo "```" >> "$REPORT_FILE"
             
             # Count jobs in the file
             JOBS_IN_FILE=$(grep -c "^  [a-zA-Z0-9_-]\+:" "$file" || echo 0)
@@ -233,29 +233,29 @@ jobs:
             MISSING_IN_FILE=$((JOBS_IN_FILE - JOBS_WITH_TIMEOUTS))
             MISSING_TIMEOUTS_COUNT=$((MISSING_TIMEOUTS_COUNT + MISSING_IN_FILE))
             
-            echo "Jobs: $JOBS_IN_FILE" >> $REPORT_FILE
-            echo "Jobs with timeouts: $JOBS_WITH_TIMEOUTS" >> $REPORT_FILE
-            echo "Jobs missing timeouts: $MISSING_IN_FILE" >> $REPORT_FILE
+            echo "Jobs: $JOBS_IN_FILE" >> "$REPORT_FILE"
+            echo "Jobs with timeouts: $JOBS_WITH_TIMEOUTS" >> "$REPORT_FILE"
+            echo "Jobs missing timeouts: $MISSING_IN_FILE" >> "$REPORT_FILE"
             
-            echo "```" >> $REPORT_FILE
-            echo "" >> $REPORT_FILE
+            echo "```" >> "$REPORT_FILE"
+            echo "" >> "$REPORT_FILE"
           done
           
           # Summary
-          echo "## Summary" >> $REPORT_FILE
-          echo "" >> $REPORT_FILE
-          echo "- Total jobs: $TOTAL_JOBS" >> $REPORT_FILE
-          echo "- Jobs missing timeout limits: $MISSING_TIMEOUTS_COUNT" >> $REPORT_FILE
+          echo "## Summary" >> "$REPORT_FILE"
+          echo "" >> "$REPORT_FILE"
+          echo "- Total jobs: $TOTAL_JOBS" >> "$REPORT_FILE"
+          echo "- Jobs missing timeout limits: $MISSING_TIMEOUTS_COUNT" >> "$REPORT_FILE"
           
           if [ $MISSING_TIMEOUTS_COUNT -gt 0 ]; then
             echo "::warning::Found $MISSING_TIMEOUTS_COUNT jobs without timeout limits out of $TOTAL_JOBS total jobs"
-            echo "missing_timeouts=true" >> $GITHUB_OUTPUT
+            echo "missing_timeouts=true" >> "$GITHUB_OUTPUT"
           else
             echo "::notice::All jobs have timeout limits defined! 🎉"
-            echo "missing_timeouts=false" >> $GITHUB_OUTPUT
+            echo "missing_timeouts=false" >> "$GITHUB_OUTPUT"
           fi
           
-          cat $REPORT_FILE
+          cat "$REPORT_FILE"
       
       - name: Comment on PR
         if: github.event_name == 'pull_request' && steps.check-timeouts.outputs.missing_timeouts == 'true'

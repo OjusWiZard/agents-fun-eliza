@@ -68,8 +68,8 @@ jobs:
         shell: bash
         run: |
           VERSION=$(jq -r '.version' agents-fun/package.json)
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
-          echo "ARTIFACT_NAME=${BINARY_NAME}_${{ matrix.os_name }}_${{ matrix.arch }}" >> $GITHUB_ENV
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          echo "ARTIFACT_NAME=${BINARY_NAME}_${{ matrix.os_name }}_${{ matrix.arch }}" >> "$GITHUB_ENV"
           echo "📦 Building version: ${VERSION} for ${{ matrix.os_name }}/${{ matrix.arch }}"
       
       # Setup and cache pnpm

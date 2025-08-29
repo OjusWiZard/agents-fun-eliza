@@ -53,32 +53,32 @@ jobs:
         run: |
           echo "Loading workflow monitoring configuration..."
           CONFIG=$(cat .github/workflow_monitoring_config.json)
-          echo "config=$(echo $CONFIG | jq -c .)" >> $GITHUB_OUTPUT
+          echo "config=$(echo "$CONFIG" | jq -c .)" >> "$GITHUB_OUTPUT"
           
           # Extract retention period
-          RETENTION_DAYS=$(echo $CONFIG | jq -r '.monitoring.retention.days')
-          echo "retention_days=$RETENTION_DAYS" >> $GITHUB_OUTPUT
+          RETENTION_DAYS=$(echo "$CONFIG" | jq -r '.monitoring.retention.days')
+          echo "retention_days=$RETENTION_DAYS" >> "$GITHUB_OUTPUT"
           
           # Extract notification thresholds
-          DURATION_WARNING=$(echo $CONFIG | jq -r '.notifications.thresholds.workflow_duration_warning_minutes')
-          DURATION_CRITICAL=$(echo $CONFIG | jq -r '.notifications.thresholds.workflow_duration_critical_minutes')
-          SUCCESS_WARNING=$(echo $CONFIG | jq -r '.notifications.thresholds.success_rate_warning_percent')
-          SUCCESS_CRITICAL=$(echo $CONFIG | jq -r '.notifications.thresholds.success_rate_critical_percent')
+          DURATION_WARNING=$(echo "$CONFIG" | jq -r '.notifications.thresholds.workflow_duration_warning_minutes')
+          DURATION_CRITICAL=$(echo "$CONFIG" | jq -r '.notifications.thresholds.workflow_duration_critical_minutes')
+          SUCCESS_WARNING=$(echo "$CONFIG" | jq -r '.notifications.thresholds.success_rate_warning_percent')
+          SUCCESS_CRITICAL=$(echo "$CONFIG" | jq -r '.notifications.thresholds.success_rate_critical_percent')
           
-          echo "duration_warning=$DURATION_WARNING" >> $GITHUB_OUTPUT
-          echo "duration_critical=$DURATION_CRITICAL" >> $GITHUB_OUTPUT
-          echo "success_warning=$SUCCESS_WARNING" >> $GITHUB_OUTPUT
-          echo "success_critical=$SUCCESS_CRITICAL" >> $GITHUB_OUTPUT
+          echo "duration_warning=$DURATION_WARNING" >> "$GITHUB_OUTPUT"
+          echo "duration_critical=$DURATION_CRITICAL" >> "$GITHUB_OUTPUT"
+          echo "success_warning=$SUCCESS_WARNING" >> "$GITHUB_OUTPUT"
+          echo "success_critical=$SUCCESS_CRITICAL" >> "$GITHUB_OUTPUT"
       
       - name: Check if weekly report is due
         id: check_weekly_report
         run: |
           # Check if today is Monday (day 1 in date format)
           if [[ $(date +%u) -eq 1 ]]; then
-            echo "weekly_report_due=true" >> $GITHUB_OUTPUT
+            echo "weekly_report_due=true" >> "$GITHUB_OUTPUT"
             echo "Today is Monday, weekly report is due"
           else
-            echo "weekly_report_due=false" >> $GITHUB_OUTPUT
+            echo "weekly_report_due=false" >> "$GITHUB_OUTPUT"
             echo "Today is not Monday, no weekly report due"
       - name: Fetch workflow run data
         id: fetch_data
@@ -138,7 +138,7 @@ jobs:
           
           # Create metrics summary file
           METRICS_FILE="./workflow-metrics/summary.json"
-          echo "{}" > $METRICS_FILE
+          echo "{}" > "$METRICS_FILE"
           
           # Process each workflow's data
           for file in ./workflow-metrics/*.json; do
@@ -214,16 +214,16 @@ jobs:
                 "avg_duration_minutes": $avg_duration | tonumber,
                 "daily_stats": $daily,
                 "common_errors": $errors
-              }' $METRICS_FILE > tmp.json && mv tmp.json $METRICS_FILE
+              }' "$METRICS_FILE" > tmp.json && mv tmp.json "$METRICS_FILE"
           done
           
           # Create a summary for output
-          SUMMARY=$(jq -c '.' $METRICS_FILE)
-          echo "metrics_summary=$SUMMARY" >> $GITHUB_OUTPUT
+          SUMMARY=$(jq -c '.' "$METRICS_FILE")
+          echo "metrics_summary=$SUMMARY" >> "$GITHUB_OUTPUT"
           
           # Save metrics to artifact
           mkdir -p ./metrics-artifacts
-          cp $METRICS_FILE ./metrics-artifacts/
+          cp "$METRICS_FILE" ./metrics-artifacts/
       - name: Analyze metrics for issues
         id: analyze_metrics
         run: |
@@ -277,7 +277,7 @@ jobs:
             fi
           done
           
-          echo "detected_issues=$ISSUES" >> $GITHUB_OUTPUT
+          echo "detected_issues=$ISSUES" >> "$GITHUB_OUTPUT"
           echo "Found $(echo "$ISSUES" | jq 'length') workflows with issues"
       
       - name: Upload metrics artifacts
@@ -683,25 +683,25 @@ jobs:
           CONFIG=$(cat .github/workflow_monitoring_config.json)
           
           # Extract notification settings
-          GITHUB_ISSUES_ENABLED=$(echo $CONFIG | jq -r '.notifications.channels.github_issues.enabled')
-          SLACK_ENABLED=$(echo $CONFIG | jq -r '.notifications.channels.slack.enabled')
-          DISCORD_ENABLED=$(echo $CONFIG | jq -r '.notifications.channels.discord.enabled')
-          EMAIL_ENABLED=$(echo $CONFIG | jq -r '.notifications.channels.email.enabled')
+          GITHUB_ISSUES_ENABLED=$(echo "$CONFIG" | jq -r '.notifications.channels.github_issues.enabled')
+          SLACK_ENABLED=$(echo "$CONFIG" | jq -r '.notifications.channels.slack.enabled')
+          DISCORD_ENABLED=$(echo "$CONFIG" | jq -r '.notifications.channels.discord.enabled')
+          EMAIL_ENABLED=$(echo "$CONFIG" | jq -r '.notifications.channels.email.enabled')
           
-          echo "github_issues_enabled=$GITHUB_ISSUES_ENABLED" >> $GITHUB_OUTPUT
-          echo "slack_enabled=$SLACK_ENABLED" >> $GITHUB_OUTPUT
-          echo "discord_enabled=$DISCORD_ENABLED" >> $GITHUB_OUTPUT
-          echo "email_enabled=$EMAIL_ENABLED" >> $GITHUB_OUTPUT
+          echo "github_issues_enabled=$GITHUB_ISSUES_ENABLED" >> "$GITHUB_OUTPUT"
+          echo "slack_enabled=$SLACK_ENABLED" >> "$GITHUB_OUTPUT"
+          echo "discord_enabled=$DISCORD_ENABLED" >> "$GITHUB_OUTPUT"
+          echo "email_enabled=$EMAIL_ENABLED" >> "$GITHUB_OUTPUT"
           
           # Extract webhook URLs (in a real implementation, these would be stored as secrets)
           if [[ "$SLACK_ENABLED" == "true" ]]; then
-            SLACK_WEBHOOK=$(echo $CONFIG | jq -r '.notifications.channels.slack.webhook_url')
-            echo "slack_webhook=$SLACK_WEBHOOK" >> $GITHUB_OUTPUT
+            SLACK_WEBHOOK=$(echo "$CONFIG" | jq -r '.notifications.channels.slack.webhook_url')
+            echo "slack_webhook=$SLACK_WEBHOOK" >> "$GITHUB_OUTPUT"
           fi
           
           if [[ "$DISCORD_ENABLED" == "true" ]]; then
-            DISCORD_WEBHOOK=$(echo $CONFIG | jq -r '.notifications.channels.discord.webhook_url')
-            echo "discord_webhook=$DISCORD_WEBHOOK" >> $GITHUB_OUTPUT
+            DISCORD_WEBHOOK=$(echo "$CONFIG" | jq -r '.notifications.channels.discord.webhook_url')
+            echo "discord_webhook=$DISCORD_WEBHOOK" >> "$GITHUB_OUTPUT"
           fi
       
       - name: Download reports
