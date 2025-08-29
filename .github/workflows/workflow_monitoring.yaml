@@ -855,7 +855,7 @@ jobs:
           server_port: ${{ secrets.MAIL_PORT }}
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: ${{ contains(needs.collect-metrics.outputs.detected_issues, '"critical":true') && '🚨 CRITICAL: GitHub Actions Workflow Issues' || '⚠️ GitHub Actions Workflow Issues' }}
+          subject: "${{ contains(needs.collect-metrics.outputs.detected_issues, '\"critical\":true') && '🚨 CRITICAL: GitHub Actions Workflow Issues' || '⚠️ GitHub Actions Workflow Issues' }}"
           body: file://./reports/daily_report.md
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: GitHub Actions Monitoring
