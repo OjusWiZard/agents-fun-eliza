@@ -580,7 +580,7 @@ jobs:
           
           The following chart shows the success rates of our workflows over time:
           
-          ~~~
+          \`\`\`
           Success Rate Chart (90-day period)
           ┌────────────────────────────────────────────────────┐
           │                                              ▄▄▄   │
@@ -594,13 +594,13 @@ jobs:
           │      ▄▄▄▄███████████████████████████████▀          │
           │ ▄▄▄▄█████████████████████████████████▀             │
           └────────────────────────────────────────────────────┘
-          ~~~
+          \`\`\`
           
           ### Duration Trends
           
           The following chart shows the average duration of our workflows over time:
           
-          ~~~
+          \`\`\`
           Duration Trend Chart (90-day period)
           ┌────────────────────────────────────────────────────┐
           │                                                    │
@@ -614,7 +614,7 @@ jobs:
           │███████████████████████████████████████▄▄           │
           │██████████████████████████████████████████████▄▄    │
           └────────────────────────────────────────────────────┘
-          ~~~
+          \`\`\`
           
           ## Recent Failures
           
@@ -636,7 +636,9 @@ jobs:
               else
                 echo "### ⚠️ $WORKFLOW" >> ./docs/ci_cd/dashboard.md
               fi
-              { echo ""; echo "**Issues:**"; } >> ./docs/ci_cd/dashboard.md
+              
+              echo "" >> ./docs/ci_cd/dashboard.md
+              echo "**Issues:**" >> ./docs/ci_cd/dashboard.md
               
               # List issues
               ISSUE_LIST=$(echo "$ISSUES" | jq -r ".[$i].issues[]")
@@ -644,7 +646,9 @@ jobs:
                 echo "- $issue" >> ./docs/ci_cd/dashboard.md
               done <<< "$ISSUE_LIST"
               
-              { echo ""; echo "**Resolution:** Investigation in progress"; echo ""; } >> ./docs/ci_cd/dashboard.md
+              echo "" >> ./docs/ci_cd/dashboard.md
+              echo "**Resolution:** Investigation in progress" >> ./docs/ci_cd/dashboard.md
+              echo "" >> ./docs/ci_cd/dashboard.md
             done
           fi
           

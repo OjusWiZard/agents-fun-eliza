@@ -65,29 +65,36 @@ jobs:
           { echo "# Unpinned Actions Report"; echo ""; } > "$REPORT_FILE"
           
           for file in $WORKFLOW_FILES; do
-            CHUNK="Checking $file\n~~~\n"
+            {
+              echo "Checking $file"
+              echo '```'
+            
             # Find lines with 'uses:' but without a SHA pin
             UNPINNED=$(grep -n "uses:" "$file" | grep -v "#" | grep -v "@[a-f0-9]\{40\}")
-            if [ -n "$UNPINNED" ]; then
-              CHUNK+="$UNPINNED\n"
-              UNPINNED_COUNT=$((UNPINNED_COUNT + $(echo "$UNPINNED" | wc -l)))
-            else
-              CHUNK+="No unpinned actions found.\n"
-            fi
+            
+              if [ -n "$UNPINNED" ]; then
+                echo "$UNPINNED"
+                UNPINNED_COUNT=$((UNPINNED_COUNT + $(echo "$UNPINNED" | wc -l)))
+              else
+                echo "No unpinned actions found."
+              fi
+            
             # Count total actions
             TOTAL_IN_FILE=$(grep -c "uses:" "$file" || echo 0)
             TOTAL_ACTIONS=$((TOTAL_ACTIONS + TOTAL_IN_FILE))
-            CHUNK+="~~~\n\n"
-            printf '%b' "$CHUNK" >> "$REPORT_FILE"
+              
+              echo '```'
+              echo ""
+            } >> "$REPORT_FILE"
           done
           
           # Summary
-          cat >> "$REPORT_FILE" << EOF
-          ## Summary
-
-          - Total actions: $TOTAL_ACTIONS
-          - Unpinned actions: $UNPINNED_COUNT
-          EOF
+          { 
+            echo "## Summary"
+            echo ""
+            echo "- Total actions: $TOTAL_ACTIONS"
+            echo "- Unpinned actions: $UNPINNED_COUNT"
+          } >> "$REPORT_FILE"
           
           if [ $UNPINNED_COUNT -gt 0 ]; then
             echo "::warning::Found $UNPINNED_COUNT unpinned actions out of $TOTAL_ACTIONS total actions"
@@ -142,25 +149,28 @@ jobs:
           { echo "# Workflow Permissions Report"; echo ""; } > "$REPORT_FILE"
           
           for file in $WORKFLOW_FILES; do
-            CHUNK="Checking $file\n"
-            # Check if the file has permissions defined
-            if ! grep -q "permissions:" "$file"; then
-              CHUNK+="❌ No permissions defined\n"
-              MISSING_PERMS_COUNT=$((MISSING_PERMS_COUNT + 1))
-            else
-              CHUNK+="✅ Permissions defined\n"
-            fi
-            CHUNK+="\n"
-            printf '%b' "$CHUNK" >> "$REPORT_FILE"
+            {
+              echo "Checking $file"
+              
+              # Check if the file has permissions defined
+              if ! grep -q "permissions:" "$file"; then
+                echo "❌ No permissions defined"
+                MISSING_PERMS_COUNT=$((MISSING_PERMS_COUNT + 1))
+              else
+                echo "✅ Permissions defined"
+              fi
+              
+              echo ""
+            } >> "$REPORT_FILE"
           done
           
           # Summary
-          cat >> "$REPORT_FILE" << EOF
-          ## Summary
-
-          - Total workflow files: $(echo "$WORKFLOW_FILES" | wc -l)
-          - Files missing permissions: $MISSING_PERMS_COUNT
-          EOF
+          { 
+            echo "## Summary"
+            echo ""
+            echo "- Total workflow files: $(echo "$WORKFLOW_FILES" | wc -l)"
+            echo "- Files missing permissions: $MISSING_PERMS_COUNT"
+          } >> "$REPORT_FILE"
           
           if [ $MISSING_PERMS_COUNT -gt 0 ]; then
             echo "::warning::Found $MISSING_PERMS_COUNT workflow files without explicit permissions"
@@ -216,25 +226,35 @@ jobs:
           { echo "# Workflow Timeout Limits Report"; echo ""; } > "$REPORT_FILE"
           
           for file in $WORKFLOW_FILES; do
-            CHUNK="Checking $file\n~~~\n"
+            {
+              echo "Checking $file"
+              echo '```'
+            
             # Count jobs in the file
             JOBS_IN_FILE=$(grep -c "^  [a-zA-Z0-9_-]\+:" "$file" || echo 0)
             TOTAL_JOBS=$((TOTAL_JOBS + JOBS_IN_FILE))
+            
             # Check for timeout-minutes in each job
             JOBS_WITH_TIMEOUTS=$(grep -c "timeout-minutes:" "$file" || echo 0)
             MISSING_IN_FILE=$((JOBS_IN_FILE - JOBS_WITH_TIMEOUTS))
             MISSING_TIMEOUTS_COUNT=$((MISSING_TIMEOUTS_COUNT + MISSING_IN_FILE))
-            CHUNK+="Jobs: $JOBS_IN_FILE\nJobs with timeouts: $JOBS_WITH_TIMEOUTS\nJobs missing timeouts: $MISSING_IN_FILE\n~~~\n\n"
-            printf '%b' "$CHUNK" >> "$REPORT_FILE"
+            
+              echo "Jobs: $JOBS_IN_FILE"
+              echo "Jobs with timeouts: $JOBS_WITH_TIMEOUTS"
+              echo "Jobs missing timeouts: $MISSING_IN_FILE"
+              
+              echo '```'
+              echo ""
+            } >> "$REPORT_FILE"
           done
           
           # Summary
-          cat >> "$REPORT_FILE" << EOF
-          ## Summary
-
-          - Total jobs: $TOTAL_JOBS
-          - Jobs missing timeout limits: $MISSING_TIMEOUTS_COUNT
-          EOF
+          { 
+            echo "## Summary"
+            echo ""
+            echo "- Total jobs: $TOTAL_JOBS"
+            echo "- Jobs missing timeout limits: $MISSING_TIMEOUTS_COUNT"
+          } >> "$REPORT_FILE"
           
           if [ $MISSING_TIMEOUTS_COUNT -gt 0 ]; then
             echo "::warning::Found $MISSING_TIMEOUTS_COUNT jobs without timeout limits out of $TOTAL_JOBS total jobs"
