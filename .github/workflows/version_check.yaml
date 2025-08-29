@@ -20,7 +20,7 @@ jobs:
       - name: Get current package.json version
         id: package_version
         run: |
-          echo "version=$(jq -r '.version' agents-fun/package.json)" >> $GITHUB_OUTPUT
+          echo "version=$(jq -r '.version' agents-fun/package.json)" >> "$GITHUB_OUTPUT"
 
       - name: Get latest GitHub release version
         id: latest_release

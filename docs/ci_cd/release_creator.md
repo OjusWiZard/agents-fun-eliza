@@ -97,7 +97,7 @@ It then prepares these artifacts for the release:
     mkdir -p ./release_files
     
     # Find all binary artifacts and copy them to release_files
-    find ./release_assets -type f -name "agentsFunEliza_*" -exec cp {} ./release_files/ \;
+    find ./release_assets -type f -name "agent_runner_*" -exec cp {} ./release_files/ \;
     
     echo "Artifacts prepared for release:"
     ls -la ./release_files/

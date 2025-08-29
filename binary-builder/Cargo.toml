@@ -9,5 +9,5 @@ rust-embed = "8.6.0"
 tempfile = "3.19.1"
 
 [[bin]]
-name = "agentsFunEliza"
+name = "agent_runner"
 path = "src/main.rs"

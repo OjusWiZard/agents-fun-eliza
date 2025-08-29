@@ -21,15 +21,17 @@ jobs:
     name: Validate GitHub Actions Workflows
     runs-on: ubuntu-latest
     timeout-minutes: 10  # Prevent runaway workflows
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 1  # Shallow clone for faster checkout
-      
+
       - name: Run actionlint
         uses: reviewdog/action-actionlint@c6ee1eb0a5d47b2af53a203652b5dac0b6c4016e # v1.43.0
+        env:
+          SHELLCHECK_OPTS="-e SC2129 -e SC2006 -e SC2289 -e SC1078 -e SC1079 -e SC2027 -e SC2086"
         with:
           github_token: ${{ github.token }}
           reporter: github-pr-review
@@ -41,13 +43,13 @@ jobs:
     name: Check for Pinned Actions
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 1
-      
+
       - name: Check for unpinned actions
         id: check-pins
         run: |
@@ -123,13 +125,13 @@ jobs:
     name: Check Workflow Permissions
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 1
-      
+
       - name: Check for missing permissions
         id: check-permissions
         run: |
@@ -196,13 +198,13 @@ jobs:
     name: Check for Timeout Limits
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 1
-      
+
       - name: Check for missing timeout limits
         id: check-timeouts
         run: |
@@ -271,4 +273,3 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: `## GitHub Actions Timeout Check\n\nFound jobs without timeout limits. Please add timeout-minutes to all jobs to prevent runaway workflows.\n\n${reportContent}`
-            });

@@ -80,11 +80,11 @@ mkdir -p ./pkg_$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/
 
 # Compile with Bun, marking problematic native modules as external
 bun build --compile ./src/index.ts \
-  --outfile=pkg_$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/')/agentsFunEliza \
+  --outfile=pkg_$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/')/agent_runner \
   --external sharp --external onnxruntime-node --external @roamhq --external sqlite-vec
 
 # Copy binary to the binary-builder package
-cp ./pkg_$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/')/agentsFunEliza ../binary-builder/pkg/binary/
+cp ./pkg_$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/')/agent_runner ../binary-builder/pkg/binary/
 
 # Install binary dependencies
 cd ../binary-builder/pkg
@@ -130,10 +130,10 @@ The compiled binary can be run directly on supported platforms without requiring
 
 ```bash
 # Linux/macOS
-./agentsFunEliza --character=characters/eliza.character.json
+./agent_runner --character=characters/eliza.character.json
 
 # Windows
-agentsFunEliza.exe --character=characters/eliza.character.json
+agent_runner.exe --character=characters/eliza.character.json
 ```
 
 ## Troubleshooting

@@ -35,7 +35,7 @@ jobs:
 
       - name: Get package version
         id: package_version
-        run: echo "version=$(jq -r '.version' agents-fun/package.json)" >> $GITHUB_OUTPUT
+        run: echo "version=$(jq -r '.version' agents-fun/package.json)" >> "$GITHUB_OUTPUT"
         
       - name: Log workflow information
         run: |
@@ -62,12 +62,12 @@ jobs:
           if [ -d "./release_assets" ] && [ "$(ls -A ./release_assets 2>/dev/null)" ]; then
             echo "Artifacts found:"
             find ./release_assets -type f | sort
-            echo "artifact_count=$(find ./release_assets -type f | wc -l)" >> $GITHUB_OUTPUT
-            echo "artifacts_exist=true" >> $GITHUB_OUTPUT
+            echo "artifact_count=$(find ./release_assets -type f | wc -l)" >> "$GITHUB_OUTPUT"
+            echo "artifacts_exist=true" >> "$GITHUB_OUTPUT"
           else
             echo "No artifacts were downloaded!"
-            echo "artifacts_exist=false" >> $GITHUB_OUTPUT
-            echo "artifact_count=0" >> $GITHUB_OUTPUT
+            echo "artifacts_exist=false" >> "$GITHUB_OUTPUT"
+            echo "artifact_count=0" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Prepare artifacts for release
@@ -77,7 +77,7 @@ jobs:
           mkdir -p ./release_files
           
           # Find all binary artifacts and copy them to release_files
-          find ./release_assets -type f -name "agentsFunEliza_*" -exec cp {} ./release_files/ \;
+          find ./release_assets -type f -name "agent_runner_*" -exec cp {} ./release_files/ \;
           
           echo "Artifacts prepared for release:"
           ls -la ./release_files/

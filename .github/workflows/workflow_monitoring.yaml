@@ -53,33 +53,36 @@ jobs:
         run: |
           echo "Loading workflow monitoring configuration..."
           CONFIG=$(cat .github/workflow_monitoring_config.json)
-          echo "config=$(echo $CONFIG | jq -c .)" >> $GITHUB_OUTPUT
+          echo "config=$(echo "$CONFIG" | jq -c .)" >> "$GITHUB_OUTPUT"
           
           # Extract retention period
-          RETENTION_DAYS=$(echo $CONFIG | jq -r '.monitoring.retention.days')
-          echo "retention_days=$RETENTION_DAYS" >> $GITHUB_OUTPUT
+          RETENTION_DAYS=$(echo "$CONFIG" | jq -r '.monitoring.retention.days')
+          echo "retention_days=$RETENTION_DAYS" >> "$GITHUB_OUTPUT"
           
           # Extract notification thresholds
-          DURATION_WARNING=$(echo $CONFIG | jq -r '.notifications.thresholds.workflow_duration_warning_minutes')
-          DURATION_CRITICAL=$(echo $CONFIG | jq -r '.notifications.thresholds.workflow_duration_critical_minutes')
-          SUCCESS_WARNING=$(echo $CONFIG | jq -r '.notifications.thresholds.success_rate_warning_percent')
-          SUCCESS_CRITICAL=$(echo $CONFIG | jq -r '.notifications.thresholds.success_rate_critical_percent')
+          DURATION_WARNING=$(echo "$CONFIG" | jq -r '.notifications.thresholds.workflow_duration_warning_minutes')
+          DURATION_CRITICAL=$(echo "$CONFIG" | jq -r '.notifications.thresholds.workflow_duration_critical_minutes')
+          SUCCESS_WARNING=$(echo "$CONFIG" | jq -r '.notifications.thresholds.success_rate_warning_percent')
+          SUCCESS_CRITICAL=$(echo "$CONFIG" | jq -r '.notifications.thresholds.success_rate_critical_percent')
           
-          echo "duration_warning=$DURATION_WARNING" >> $GITHUB_OUTPUT
-          echo "duration_critical=$DURATION_CRITICAL" >> $GITHUB_OUTPUT
-          echo "success_warning=$SUCCESS_WARNING" >> $GITHUB_OUTPUT
-          echo "success_critical=$SUCCESS_CRITICAL" >> $GITHUB_OUTPUT
+          { 
+            echo "duration_warning=$DURATION_WARNING"
+            echo "duration_critical=$DURATION_CRITICAL"
+            echo "success_warning=$SUCCESS_WARNING"
+            echo "success_critical=$SUCCESS_CRITICAL"
+          } >> "$GITHUB_OUTPUT"
       
       - name: Check if weekly report is due
         id: check_weekly_report
         run: |
           # Check if today is Monday (day 1 in date format)
           if [[ $(date +%u) -eq 1 ]]; then
-            echo "weekly_report_due=true" >> $GITHUB_OUTPUT
+            echo "weekly_report_due=true" >> "$GITHUB_OUTPUT"
             echo "Today is Monday, weekly report is due"
           else
-            echo "weekly_report_due=false" >> $GITHUB_OUTPUT
+            echo "weekly_report_due=false" >> "$GITHUB_OUTPUT"
             echo "Today is not Monday, no weekly report due"
+          fi
       - name: Fetch workflow run data
         id: fetch_data
         run: |
@@ -100,21 +103,21 @@ jobs:
           SINCE_DATE=$(date -d "${{ steps.config.outputs.retention_days }} days ago" +%Y-%m-%dT%H:%M:%SZ)
           
           # Fetch data for each workflow
-          for workflow in $WORKFLOWS; do
+          while IFS= read -r workflow; do
             echo "Fetching data for workflow: $workflow"
             
             # Get workflow ID
             WORKFLOW_ID=$(curl -s \
               -H "Authorization: token ${{ github.token }}" \
               -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/$workflow.yaml" | jq -r '.id')
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/${workflow}.yaml" | jq -r '.id')
             
             if [[ -z "$WORKFLOW_ID" || "$WORKFLOW_ID" == "null" ]]; then
               # Try with .yml extension
               WORKFLOW_ID=$(curl -s \
                 -H "Authorization: token ${{ github.token }}" \
                 -H "Accept: application/vnd.github.v3+json" \
-                "https://api.github.com/repos/${{ github.repository }}/actions/workflows/$workflow.yml" | jq -r '.id')
+                "https://api.github.com/repos/${{ github.repository }}/actions/workflows/${workflow}.yml" | jq -r '.id')
             fi
             
             if [[ -z "$WORKFLOW_ID" || "$WORKFLOW_ID" == "null" ]]; then
@@ -126,10 +129,10 @@ jobs:
             curl -s \
               -H "Authorization: token ${{ github.token }}" \
               -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/$WORKFLOW_ID/runs?per_page=100&created=>$SINCE_DATE" > ./workflow-metrics/$workflow.json
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/$WORKFLOW_ID/runs?per_page=100&created=>$SINCE_DATE" > "./workflow-metrics/${workflow}.json"
             
-            echo "Fetched $(jq '.total_count' ./workflow-metrics/$workflow.json) runs for $workflow"
-          done
+            echo "Fetched $(jq '.total_count' "./workflow-metrics/${workflow}.json") runs for $workflow"
+          done <<< "$WORKFLOWS"
       
       - name: Process metrics
         id: process_metrics
@@ -138,7 +141,7 @@ jobs:
           
           # Create metrics summary file
           METRICS_FILE="./workflow-metrics/summary.json"
-          echo "{}" > $METRICS_FILE
+          echo "{}" > "$METRICS_FILE"
           
           # Process each workflow's data
           for file in ./workflow-metrics/*.json; do
@@ -214,16 +217,16 @@ jobs:
                 "avg_duration_minutes": $avg_duration | tonumber,
                 "daily_stats": $daily,
                 "common_errors": $errors
-              }' $METRICS_FILE > tmp.json && mv tmp.json $METRICS_FILE
+              }' "$METRICS_FILE" > tmp.json && mv tmp.json "$METRICS_FILE"
           done
           
           # Create a summary for output
-          SUMMARY=$(jq -c '.' $METRICS_FILE)
-          echo "metrics_summary=$SUMMARY" >> $GITHUB_OUTPUT
+          SUMMARY=$(jq -c '.' "$METRICS_FILE")
+          echo "metrics_summary=$SUMMARY" >> "$GITHUB_OUTPUT"
           
           # Save metrics to artifact
           mkdir -p ./metrics-artifacts
-          cp $METRICS_FILE ./metrics-artifacts/
+          cp "$METRICS_FILE" ./metrics-artifacts/
       - name: Analyze metrics for issues
         id: analyze_metrics
         run: |
@@ -277,7 +280,7 @@ jobs:
             fi
           done
           
-          echo "detected_issues=$ISSUES" >> $GITHUB_OUTPUT
+          echo "detected_issues=$ISSUES" >> "$GITHUB_OUTPUT"
           echo "Found $(echo "$ISSUES" | jq 'length') workflows with issues"
       
       - name: Upload metrics artifacts
@@ -369,20 +372,17 @@ jobs:
           if [[ "$ISSUES_COUNT" -eq 0 ]]; then
             echo "No issues detected in workflows. All systems operating within normal parameters." >> ./reports/daily_report.md
           else
-            echo "The following issues were detected in workflow performance:" >> ./reports/daily_report.md
-            echo "" >> ./reports/daily_report.md
+            { echo "The following issues were detected in workflow performance:"; echo ""; } >> ./reports/daily_report.md
             
-            for i in $(seq 0 $(($ISSUES_COUNT - 1))); do
+            for i in $(seq 0 $((ISSUES_COUNT - 1))); do
               WORKFLOW=$(echo "$ISSUES" | jq -r ".[$i].workflow")
               IS_CRITICAL=$(echo "$ISSUES" | jq -r ".[$i].critical")
               
               if [[ "$IS_CRITICAL" == "true" ]]; then
-                echo "### ❌ $WORKFLOW (CRITICAL WORKFLOW)" >> ./reports/daily_report.md
+                { echo "### ❌ $WORKFLOW (CRITICAL WORKFLOW)"; echo ""; } >> ./reports/daily_report.md
               else
-                echo "### ⚠️ $WORKFLOW" >> ./reports/daily_report.md
+                { echo "### ⚠️ $WORKFLOW"; echo ""; } >> ./reports/daily_report.md
               fi
-              
-              echo "" >> ./reports/daily_report.md
               
               # List issues
               ISSUE_LIST=$(echo "$ISSUES" | jq -r ".[$i].issues[]")
@@ -402,11 +402,11 @@ jobs:
           EOF
           
           if [[ "$ISSUES_COUNT" -eq 0 ]]; then
-            echo "- Continue monitoring workflow performance" >> ./reports/daily_report.md
-            echo "- Consider optimizing long-running workflows to improve CI/CD efficiency" >> ./reports/daily_report.md
+            { echo "- Continue monitoring workflow performance"; echo "- Consider optimizing long-running workflows to improve CI/CD efficiency"; } >> ./reports/daily_report.md
           else
-            echo "- Investigate and address the issues listed above, prioritizing critical workflows" >> ./reports/daily_report.md
-            echo "- Review error patterns in failing workflows to identify root causes" >> ./reports/daily_report.md
+            { echo "- Investigate and address the issues listed above, prioritizing critical workflows"; echo "- Review error patterns in failing workflows to identify root causes"; } >> ./reports/daily_report.md
+          fi
+          echo "Daily report generated successfully"
       - name: Generate weekly report
         id: weekly_report
         if: needs.collect-metrics.outputs.weekly_report_due == 'true' || github.event.inputs.generate_report == 'true'
@@ -432,7 +432,7 @@ jobs:
           TOTAL_WORKFLOWS=$(echo "$METRICS" | jq 'keys | length')
           TOTAL_RUNS=$(echo "$METRICS" | jq '[.[] | .total_runs] | add')
           AVG_SUCCESS_RATE=$(echo "$METRICS" | jq '[.[] | .success_rate] | add / length')
-          AVG_SUCCESS_RATE=$(printf "%.1f" $AVG_SUCCESS_RATE)
+          AVG_SUCCESS_RATE=$(printf "%.1f" "$AVG_SUCCESS_RATE")
           
           # Add overall statistics
           cat >> ./reports/weekly_report.md << EOF
@@ -489,15 +489,14 @@ jobs:
             
             # Add common errors if any failures
             if [[ "$FAILED_RUNS" -gt 0 ]]; then
-              echo "#### Common Failure Patterns" >> ./reports/weekly_report.md
-              echo "" >> ./reports/weekly_report.md
-              
               # This would extract actual error patterns in a real implementation
-              echo "1. Configuration errors (40%)" >> ./reports/weekly_report.md
-              echo "2. Timeout issues (30%)" >> ./reports/weekly_report.md
-              echo "3. Network connectivity problems (20%)" >> ./reports/weekly_report.md
-              echo "4. Resource constraints (10%)" >> ./reports/weekly_report.md
-              echo "" >> ./reports/weekly_report.md
+              { echo "#### Common Failure Patterns";
+                echo "";
+                echo "1. Configuration errors (40%)";
+                echo "2. Timeout issues (30%)";
+                echo "3. Network connectivity problems (20%)";
+                echo "4. Resource constraints (10%)";
+                echo ""; } >> ./reports/weekly_report.md
             fi
           done
           
@@ -520,13 +519,7 @@ jobs:
           EOF
           
           echo "Weekly report generated successfully"
-            echo "- Consider adding more comprehensive tests to workflows with low success rates" >> ./reports/daily_report.md
-            echo "- Optimize workflows with longer than expected durations" >> ./reports/daily_report.md
-          fi
-          
-          echo "Daily report generated successfully"
           echo "Metrics processing complete"
-          fi
       - name: Update dashboard
         run: |
           echo "Updating CI/CD dashboard..."
@@ -631,7 +624,7 @@ jobs:
           if [[ "$ISSUES_COUNT" -eq 0 ]]; then
             echo "No recent workflow failures detected. All systems operating normally." >> ./docs/ci_cd/dashboard.md
           else
-            for i in $(seq 0 $(($ISSUES_COUNT - 1))); do
+            for i in $(seq 0 $((ISSUES_COUNT - 1))); do
               WORKFLOW=$(echo "$ISSUES" | jq -r ".[$i].workflow")
               IS_CRITICAL=$(echo "$ISSUES" | jq -r ".[$i].critical")
               
@@ -641,8 +634,7 @@ jobs:
                 echo "### ⚠️ $WORKFLOW" >> ./docs/ci_cd/dashboard.md
               fi
               
-              echo "" >> ./docs/ci_cd/dashboard.md
-              echo "**Issues:**" >> ./docs/ci_cd/dashboard.md
+              { echo ""; echo "**Issues:**"; } >> ./docs/ci_cd/dashboard.md
               
               # List issues
               ISSUE_LIST=$(echo "$ISSUES" | jq -r ".[$i].issues[]")
@@ -650,9 +642,9 @@ jobs:
                 echo "- $issue" >> ./docs/ci_cd/dashboard.md
               done <<< "$ISSUE_LIST"
               
-              echo "" >> ./docs/ci_cd/dashboard.md
-              echo "**Resolution:** Investigation in progress" >> ./docs/ci_cd/dashboard.md
-              echo "" >> ./docs/ci_cd/dashboard.md
+              { echo "";
+                echo "**Resolution:** Investigation in progress";
+                echo ""; } >> ./docs/ci_cd/dashboard.md
             done
           fi
           
@@ -662,6 +654,12 @@ jobs:
           ## Useful Links
           
           - [GitHub Actions Workflows](https://github.com/${{ github.repository }}/actions)
+          - [CI/CD Documentation](https://github.com/${{ github.repository }}/tree/main/docs/ci_cd)
+          - [Workflow Monitoring Configuration](.github/workflow_monitoring_config.json)
+          
+          EOF
+          
+          echo "Dashboard updated successfully"
 # Send notifications for workflow issues
   send-notifications:
     name: Send Notifications
@@ -683,25 +681,27 @@ jobs:
           CONFIG=$(cat .github/workflow_monitoring_config.json)
           
           # Extract notification settings
-          GITHUB_ISSUES_ENABLED=$(echo $CONFIG | jq -r '.notifications.channels.github_issues.enabled')
-          SLACK_ENABLED=$(echo $CONFIG | jq -r '.notifications.channels.slack.enabled')
-          DISCORD_ENABLED=$(echo $CONFIG | jq -r '.notifications.channels.discord.enabled')
-          EMAIL_ENABLED=$(echo $CONFIG | jq -r '.notifications.channels.email.enabled')
+          GITHUB_ISSUES_ENABLED=$(echo "$CONFIG" | jq -r '.notifications.channels.github_issues.enabled')
+          SLACK_ENABLED=$(echo "$CONFIG" | jq -r '.notifications.channels.slack.enabled')
+          DISCORD_ENABLED=$(echo "$CONFIG" | jq -r '.notifications.channels.discord.enabled')
+          EMAIL_ENABLED=$(echo "$CONFIG" | jq -r '.notifications.channels.email.enabled')
           
-          echo "github_issues_enabled=$GITHUB_ISSUES_ENABLED" >> $GITHUB_OUTPUT
-          echo "slack_enabled=$SLACK_ENABLED" >> $GITHUB_OUTPUT
-          echo "discord_enabled=$DISCORD_ENABLED" >> $GITHUB_OUTPUT
-          echo "email_enabled=$EMAIL_ENABLED" >> $GITHUB_OUTPUT
+          { 
+            echo "github_issues_enabled=$GITHUB_ISSUES_ENABLED"
+            echo "slack_enabled=$SLACK_ENABLED"
+            echo "discord_enabled=$DISCORD_ENABLED"
+            echo "email_enabled=$EMAIL_ENABLED"
+          } >> "$GITHUB_OUTPUT"
           
           # Extract webhook URLs (in a real implementation, these would be stored as secrets)
           if [[ "$SLACK_ENABLED" == "true" ]]; then
-            SLACK_WEBHOOK=$(echo $CONFIG | jq -r '.notifications.channels.slack.webhook_url')
-            echo "slack_webhook=$SLACK_WEBHOOK" >> $GITHUB_OUTPUT
+            SLACK_WEBHOOK=$(echo "$CONFIG" | jq -r '.notifications.channels.slack.webhook_url')
+            echo "slack_webhook=$SLACK_WEBHOOK" >> "$GITHUB_OUTPUT"
           fi
           
           if [[ "$DISCORD_ENABLED" == "true" ]]; then
-            DISCORD_WEBHOOK=$(echo $CONFIG | jq -r '.notifications.channels.discord.webhook_url')
-            echo "discord_webhook=$DISCORD_WEBHOOK" >> $GITHUB_OUTPUT
+            DISCORD_WEBHOOK=$(echo "$CONFIG" | jq -r '.notifications.channels.discord.webhook_url')
+            echo "discord_webhook=$DISCORD_WEBHOOK" >> "$GITHUB_OUTPUT"
           fi
       
       - name: Download reports
@@ -775,7 +775,7 @@ jobs:
             # Add summary of issues
             MESSAGE="${MESSAGE}Found $ISSUES_COUNT workflows with issues:\n"
             
-            for i in $(seq 0 $(($ISSUES_COUNT - 1))); do
+            for i in $(seq 0 $((ISSUES_COUNT - 1))); do
               WORKFLOW=$(echo "$ISSUES" | jq -r ".[$i].workflow")
               IS_CRITICAL=$(echo "$ISSUES" | jq -r ".[$i].critical")
               ISSUE_COUNT=$(echo "$ISSUES" | jq -r ".[$i].issues | length")
@@ -823,7 +823,7 @@ jobs:
             # Add summary of issues
             MESSAGE="${MESSAGE}Found $ISSUES_COUNT workflows with issues:\n"
             
-            for i in $(seq 0 $(($ISSUES_COUNT - 1))); do
+            for i in $(seq 0 $((ISSUES_COUNT - 1))); do
               WORKFLOW=$(echo "$ISSUES" | jq -r ".[$i].workflow")
               IS_CRITICAL=$(echo "$ISSUES" | jq -r ".[$i].critical")
               ISSUE_COUNT=$(echo "$ISSUES" | jq -r ".[$i].issues | length")
@@ -853,7 +853,7 @@ jobs:
           server_port: ${{ secrets.MAIL_PORT }}
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: ${{ contains(needs.collect-metrics.outputs.detected_issues, '"critical":true') && '🚨 CRITICAL: GitHub Actions Workflow Issues' || '⚠️ GitHub Actions Workflow Issues' }}
+          subject: "${{ contains(needs.collect-metrics.outputs.detected_issues, '\"critical\":true') && '🚨 CRITICAL: GitHub Actions Workflow Issues' || '⚠️ GitHub Actions Workflow Issues' }}"
           body: file://./reports/daily_report.md
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: GitHub Actions Monitoring
@@ -908,12 +908,7 @@ jobs:
                 context: `Workflow Monitoring / ${issue.workflow}`
               });
             }
-          - [CI/CD Documentation](https://github.com/${{ github.repository }}/tree/main/docs/ci_cd)
-          - [Workflow Monitoring Configuration](.github/workflow_monitoring_config.json)
           
-          EOF
-          
-          echo "Dashboard updated successfully"
       
       - name: Commit dashboard update
         run: |
