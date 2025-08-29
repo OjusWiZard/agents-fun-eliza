@@ -82,6 +82,7 @@ jobs:
           else
             echo "weekly_report_due=false" >> "$GITHUB_OUTPUT"
             echo "Today is not Monday, no weekly report due"
+          fi
       - name: Fetch workflow run data
         id: fetch_data
         run: |
@@ -404,6 +405,8 @@ jobs:
             { echo "- Continue monitoring workflow performance"; echo "- Consider optimizing long-running workflows to improve CI/CD efficiency"; } >> ./reports/daily_report.md
           else
             { echo "- Investigate and address the issues listed above, prioritizing critical workflows"; echo "- Review error patterns in failing workflows to identify root causes"; } >> ./reports/daily_report.md
+          fi
+          echo "Daily report generated successfully"
       - name: Generate weekly report
         id: weekly_report
         if: needs.collect-metrics.outputs.weekly_report_due == 'true' || github.event.inputs.generate_report == 'true'
@@ -517,12 +520,7 @@ jobs:
           EOF
           
           echo "Weekly report generated successfully"
-            { echo "- Consider adding more comprehensive tests to workflows with low success rates"; echo "- Optimize workflows with longer than expected durations"; } >> ./reports/daily_report.md
-          fi
-          
-          echo "Daily report generated successfully"
           echo "Metrics processing complete"
-          fi
       - name: Update dashboard
         run: |
           echo "Updating CI/CD dashboard..."
@@ -658,6 +656,12 @@ jobs:
           ## Useful Links
           
           - [GitHub Actions Workflows](https://github.com/${{ github.repository }}/actions)
+          - [CI/CD Documentation](https://github.com/${{ github.repository }}/tree/main/docs/ci_cd)
+          - [Workflow Monitoring Configuration](.github/workflow_monitoring_config.json)
+          
+          EOF
+          
+          echo "Dashboard updated successfully"
 # Send notifications for workflow issues
   send-notifications:
     name: Send Notifications
@@ -906,12 +910,7 @@ jobs:
                 context: `Workflow Monitoring / ${issue.workflow}`
               });
             }
-          - [CI/CD Documentation](https://github.com/${{ github.repository }}/tree/main/docs/ci_cd)
-          - [Workflow Monitoring Configuration](.github/workflow_monitoring_config.json)
           
-          EOF
-          
-          echo "Dashboard updated successfully"
       
       - name: Commit dashboard update
         run: |
